@@ -44,117 +44,55 @@ int graceful_close(int flag)
 	return 0;
 }
 
+
 /*
  * Create and bind a socket code
  */
-int open_socket( int sock_port)
+int open_socket(int sock_port)
 {
-	int listenfd = 0, connfd = 0;
-    struct sockaddr_in serv_addr; 
+	int listenfd = 0;
+	struct sockaddr_in serv_addr; 
 
-    char sendBuff[1025];
-    time_t ticks; 
+	char sendBuff[1025];
+	time_t ticks; 
 
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    memset(&serv_addr, '0', sizeof(serv_addr));
-    memset(sendBuff, '0', sizeof(sendBuff)); 
+	listenfd = socket(AF_INET, SOCK_STREAM, 0);
+	if(listenfd < 0) {
+		printf("Error Opening Socket");
+		graceful_close(-2);
+	}
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    serv_addr.sin_port = htons(sock_port); 
+	memset(&serv_addr, '0', sizeof(serv_addr));
+	memset(sendBuff, '0', sizeof(sendBuff)); 
 
-    bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)); 
+	serv_addr.sin_family = AF_INET;
+	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	serv_addr.sin_port = htons(sock_port); 
 
-   
-     return listenfd;
-}
-/*
- * END Create and bind a socket code
- */
- 
- 
-/*
- * Encapsulate(create) and de-encapsulate(interpret) packets code
- */
-int encapsulate_packet(char* source_ip)
-{
+	
+	int bind_ret = bind(listenfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)); 
+	if(bind_ret < 0) {
+		printf("Error Binding");
+		graceful_close(-3);
+	}
 
-	/*
-	 * TODO: Packet should be:
-	 * Type (16 bits): Length (16 bits): Data
- 	 *
-	 * The fields for part 1 are:
-	 * -Type: This 16-bit integer in the form 0xABCD  (hexadecimal). It indicates a VLAN packet. Parts 2 and 3 will expand the type field to include more types.  
-	 * -Length: The length of the remainder of the data payload, as an unsigned 16 bit integer.  
-	 * -Data: The packet as received from tap device.   
-	 */
-	struct packet_header
-	{
-		unsigned int source;
-		unsigned int dest;
-		unsigned char payload[1500];
-	};
-	
-	struct packet_header *header_p = malloc(sizeof(struct packet_header));
-	unsigned int src,dst;
-	
-	
-	//get the source IP address
-	header_p->source = htonl(/*hex representation of IP address*/);
-	header_p->dest = htonl(/*hex representation of IP address*/);
-	
-	//debugging utilities: just to be able to print what the ehader source and estination values are
-	src = header_p->source;
-	dst = header_p->dest;
-	
-	//this will be our packet message (payload) We will fill this with a header and a message
-	my_byte = byte_p[1607];
-	
-	//This will be where we create our packet header, and put it in the payload
-	
+	return listenfd;
 }
 
-int deencapsulate_packet(char* buffer)
-{
-	/*Since we know how the packets are encapsulated (see above) we can just parse out our header and our message body*/
-}
-
-/*
- * Create our packet headers
- */
-int create_ethernet_header()
-{
-	struct ether_addr
-	{
-		u_int8_t ether_addr_octet[ETH_ALEN];
-	} __attribute__ ((__packed__));
-	/* 10Mb/s ethernet header */
-	
-	struct ether_header
-	{
-		u_int8_t ether_dhost[ETH_ALEN]; /* destination eth addr */
-		u_int8_t ether_shost[ETH_ALEN]; /* source ether addr */
-		u_int16_t ether_type; /* packet type ID field */
-	} __attribute__ ((__packed__));
-
-	
-}
-/*
- * END Encapsulate(create) and de-encapsulate(interpret) packets code 
- */
 
 /*
  *TCP socket listen thread code - (inteprets input, and either listens on our socket or creates an outgoing connection our socket, depending on the inputs.
  */
-int tcp_listener(int listenfd, int argc, char* argsv)
+int tcp_listener(int listenfd, int argc, char* argv)
 {
-	
+	int connfd = 0;
+
 	if(argc > 4 || argc < 3)
 	{
 		printf("Error: usage:");
 		return 0;
 	}
-	
+
 	/* Server Mode */
 	if(argc == 4)
 	{
@@ -163,8 +101,13 @@ int tcp_listener(int listenfd, int argc, char* argsv)
 		//infinite listening loop
 		for(;;)
 		{
-			connfd = accept(listenfd, (struct sockaddr*)NULL, NULL); 
+			connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
+			if(connfd < 0) {
+				printf("Error on accept");
+				graceful_close(-4);
+			}
 
+			//TODO: What is this?
 			ticks = time(NULL);
 			snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
 			write(connfd, sendBuff, strlen(sendBuff)); 
@@ -174,7 +117,8 @@ int tcp_listener(int listenfd, int argc, char* argsv)
 
 			if ((listenfd = socket(PF_INET, SOCK_RAW, IPPROTO_TCP)) == -1)
 				// your error message here
-
+				
+				//TODO: What is this?
 				for(i=0; i < 3; i++)
 				{
 					recv_length = recv(sockfd, buffer, 8000, 0);
@@ -192,11 +136,161 @@ int tcp_listener(int listenfd, int argc, char* argsv)
 	else if (argc == 3)
 	{
 		//Code to connect to the proxy 'server', because this will act as a 'client' machine... basically, create an outgoing connection from our socket.
+		
+		/* TODO: Everything below is stolen from the man page of getaddrinfo */
+
+		struct addrinfo hints;
+		struct addrinfo *result, *rp;
+		int sfd, s, j;
+		size_t len;
+		ssize_t nread;
+		char buf[BUF_SIZE];
+
+		if (argc < 3) {
+			fprintf(stderr, "Usage: %s host port msg...\n", argv[0]);
+			exit(EXIT_FAILURE);
+		}
+
+		/* Obtain address(es) matching host/port */
+
+		memset(&hints, 0, sizeof(struct addrinfo));
+		hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+		hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
+		hints.ai_flags = 0;
+		hints.ai_protocol = 0;          /* Any protocol */
+
+		s = getaddrinfo(argv[1], argv[2], &hints, &result);
+		if (s != 0) {
+			fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+			exit(EXIT_FAILURE);
+		}
+
+		/* getaddrinfo() returns a list of address structures.
+			 Try each address until we successfully connect(2).
+			 If socket(2) (or connect(2)) fails, we (close the socket
+			 and) try the next address. */
+
+		for (rp = result; rp != NULL; rp = rp->ai_next) {
+			sfd = socket(rp->ai_family, rp->ai_socktype,
+					rp->ai_protocol);
+			if (sfd == -1)
+				continue;
+
+			if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1)
+				break;                  /* Success */
+
+			close(sfd);
+		}
+
+		if (rp == NULL) {               /* No address succeeded */
+			fprintf(stderr, "Could not connect\n");
+			exit(EXIT_FAILURE);
+		}
+
+		freeaddrinfo(result);           /* No longer needed */
+
+		/* Send remaining command-line arguments as separate
+			 datagrams, and read responses from server */
+
+		for (j = 3; j < argc; j++) {
+			len = strlen(argv[j]) + 1;
+			/* +1 for terminating null byte */
+
+			if (len + 1 > BUF_SIZE) {
+				fprintf(stderr,
+						"Ignoring long message in argument %d\n", j);
+				continue;
+			}
+			if (write(sfd, argv[j], len) != len) {
+				fprintf(stderr, "partial/failed write\n");
+				exit(EXIT_FAILURE);
+			}
+
+			nread = read(sfd, buf, BUF_SIZE);
+			if (nread == -1) {
+				perror("read");
+				exit(EXIT_FAILURE);
+			}
+
+			printf("Received %ld bytes: %s\n", (long) nread, buf);
+		}
+
 	}
 }
+
+
 /*
- * END TCP socket listen thread code
+ * Encapsulate(create) and de-encapsulate(interpret) packets code
  */
+int encapsulate_packet(char* source_ip)
+{
+
+	/*
+	 * TODO: Packet should be:
+	 * Type (16 bits): Length (16 bits): Data
+	 *
+	 * The fields for part 1 are:
+	 * -Type: This 16-bit integer in the form 0xABCD  (hexadecimal). It indicates a VLAN packet.
+	 * -Length: The length of the remainder of the data payload, as an unsigned 16 bit integer.  
+	 * -Data: The packet as received from tap device.   
+	 */
+	struct packet_header
+	{
+		unsigned int source;
+		unsigned int dest;
+		unsigned char payload[1500];
+	};
+
+	struct packet_header *header_p = malloc(sizeof(struct packet_header));
+	unsigned int src,dst;
+
+
+	//get the source IP address
+	header_p->source = htonl(/*hex representation of IP address*/);
+	header_p->dest = htonl(/*hex representation of IP address*/);
+
+	//debugging utilities: just to be able to print what the ehader source and estination values are
+	src = header_p->source;
+	dst = header_p->dest;
+
+	//this will be our packet message (payload) We will fill this with a header and a message
+	my_byte = byte_p[1607];
+
+	//This will be where we create our packet header, and put it in the payload
+
+}
+
+int deencapsulate_packet(char* buffer)
+{
+	/*Since we know how the packets are encapsulated (see above) we can just parse out our header and our message body*/
+}
+
+/*
+ * Create our packet headers
+ */
+int create_ethernet_header()
+{
+	struct ether_addr
+	{
+		u_int8_t ether_addr_octet[ETH_ALEN];
+	} __attribute__ ((__packed__));
+	/* 10Mb/s ethernet header */
+
+	struct ether_header
+	{
+		u_int8_t ether_dhost[ETH_ALEN]; /* destination eth addr */
+		u_int8_t ether_shost[ETH_ALEN]; /* source ether addr */
+		u_int16_t ether_type; /* packet type ID field */
+	} __attribute__ ((__packed__));
+
+
+}
+/*
+ * END Encapsulate(create) and de-encapsulate(interpret) packets code 
+ */
+
+
+
 
 /*
  *
@@ -207,67 +301,76 @@ int vtap_listener()
 {
 	//allocate_tunnel();
 	char *if_name = "tap0";
- 
+
 	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 )
 	{
 		perror("Opening tap interface failed! \n");
 		exit(1);
 	}
-/* now you can read/write on tap_fd */
+	/* now you can read/write on tap_fd */
 }
 
 /*
  * I got this code directly from assignment, do not really understand it.
  */
 int allocate_tunnel(char *dev, int flags) {
-  int fd, error;
-  struct ifreq ifr;
-  char *device_name = "/dev/net/tun";
-  if( (fd = open(device_name , O_RDWR)) < 0 ) {
-    perror("error opening /dev/net/tun");
-    return fd;
-  }
-  memset(&ifr, 0, sizeof(ifr));
-  ifr.ifr_flags = flags;
-  if (*dev) {
-    strncpy(ifr.ifr_name, dev, IFNAMSIZ);
-  }
-  if( (error = ioctl(fd, TUNSETIFF, (void *)&ifr)) < 0 ) {
-    perror("ioctl on tap failed");
-    close(fd);
-    return error;
-  }
-  strcpy(dev, ifr.ifr_name);
-  return fd;
+	int fd, error;
+	struct ifreq ifr;
+	char *device_name = "/dev/net/tun";
+	if( (fd = open(device_name , O_RDWR)) < 0 ) {
+		perror("error opening /dev/net/tun");
+		return fd;
+	}
+	memset(&ifr, 0, sizeof(ifr));
+	ifr.ifr_flags = flags;
+	if (*dev) {
+		strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+	}
+	if( (error = ioctl(fd, TUNSETIFF, (void *)&ifr)) < 0 ) {
+		perror("ioctl on tap failed");
+		close(fd);
+		return error;
+	}
+	strcpy(dev, ifr.ifr_name);
+	return fd;
 }
 /*
  * end Local Tap Device Code
  */
-	
+
 /*
- * 
- * Main method of course... creates threads for the tap device and for the socket.
- * 
+ * Usage:
+ * Client: cs352proxy <port> <local interface>
+ * Server: cs352proxy <remote host> <remote port> <local interface>
+ *  The arguments are:
+ *  local port: a string that is a number from 1024-65535. This is the TCP port the proxy will accept connections on.  
+ *  local interface: A string that defines the local tap device, e.g. tun2  
+ *  remote host: A string that defines which peer proxy to connect to. It can be a DNS hostname or dotted decimal notation. 
+ *  remote port: This is the remote TCP port the proxy should connect to.  
+ *
+ *
+ * Create threads for the tap device and for the socket.
  */
-int main(int argc, char* argsv)
+int main(int argc, char** argv)
 {
 	if(argc != 3 || argc != 4)
 	{
-		int close = graceful_close(-1);
-		return close;
+		return graceful_close(-1);
 	}
-	
-	int sock_descr = open_socket(argsv[0]);
-	pthread_t vtap_pth, sock_pth;	// this is our thread identifier
+
+	int sock_descr = open_socket(argv[0]);
+	//thread identifier
+	pthread_t vtap_pth, sock_pth;	
 	int i = 0;
 
-	/* Create worker thread */
+	/* Create tap thread */
 	pthread_create(&vtap_pth,NULL,vtap_listener,"processing...");
 
-	pthread_create(&sock_th,NULL,tcp_listener(sock_descr, argc, argsv),"processing...");
+	/* Create tcp listener thread */
+	pthread_create(&sock_th,NULL,tcp_listener(sock_descr, argc, argv),"processing...");
 
-	pthread_kill(&vtap_pth, 0);
-	pthread_kill(&sock_pth, 0);
-	
+	pthread_join(&vtap_pth, 0);
+	pthread_join(&sock_pth, 0);
+
 	return 0;
 }
