@@ -36,10 +36,8 @@
  */
 int graceful_close(int flag)
 {
-	if (flag == -1)
-	{
-		printf("Usage:/n/tFor the 1st proxy (e.g. on machine X)/n/t/tcs352proxy <port> <local interface>/n/tFor the 2nd proxy (e.g. on machine Y)/n/t/tcs352proxy <remote host> <remote port> <local interface>");
-		return -1;
+	if (flag == -1)	{
+
 	}
 	return 0;
 }
@@ -56,6 +54,7 @@ int open_socket(int sock_port)
 	char sendBuff[1025];
 	time_t ticks; 
 
+	//For clients
 	listenfd = socket(AF_INET, SOCK_STREAM, 0);
 	if(listenfd < 0) {
 		printf("Error Opening Socket");
@@ -96,41 +95,6 @@ int tcp_listener(int listenfd, int argc, char* argv)
 	/* Server Mode */
 	if(argc == 4)
 	{
-		// put socket in listen mode... the arguments are listen(socket_file_descriptor, num_connections_to_queue)... I just chose 10 arbitrarily
-		listen(listenfd, 10); 
-		//infinite listening loop
-		for(;;)
-		{
-			connfd = accept(listenfd, (struct sockaddr*)NULL, NULL);
-			if(connfd < 0) {
-				printf("Error on accept");
-				graceful_close(-4);
-			}
-
-			//TODO: What is this?
-			ticks = time(NULL);
-			snprintf(sendBuff, sizeof(sendBuff), "%.24s\r\n", ctime(&ticks));
-			write(connfd, sendBuff, strlen(sendBuff)); 
-
-			int i, recv_length, sockfd;
-			u_char buffer[9000];
-
-			if ((listenfd = socket(PF_INET, SOCK_RAW, IPPROTO_TCP)) == -1)
-				// your error message here
-				
-				//TODO: What is this?
-				for(i=0; i < 3; i++)
-				{
-					recv_length = recv(sockfd, buffer, 8000, 0);
-					printf("Got a %d byte packet\n", recv_length);
-					deencapsulate_packet(buffer);
-				}
-
-			//closes each connection as it get it
-			close(connfd);
-			//sleep for a second to prevent DDOS
-			sleep(1);
-		}		
 	}
 	/* Peer Mode */
 	else if (argc == 3)
@@ -219,77 +183,10 @@ int tcp_listener(int listenfd, int argc, char* argv)
 }
 
 
-/*
- * Encapsulate(create) and de-encapsulate(interpret) packets code
- */
-int encapsulate_packet(char* source_ip)
-{
 
-	/*
-	 * TODO: Packet should be:
-	 * Type (16 bits): Length (16 bits): Data
-	 *
-	 * The fields for part 1 are:
-	 * -Type: This 16-bit integer in the form 0xABCD  (hexadecimal). It indicates a VLAN packet.
-	 * -Length: The length of the remainder of the data payload, as an unsigned 16 bit integer.  
-	 * -Data: The packet as received from tap device.   
-	 */
-	struct packet_header
-	{
-		unsigned int source;
-		unsigned int dest;
-		unsigned char payload[1500];
-	};
-
-	struct packet_header *header_p = malloc(sizeof(struct packet_header));
-	unsigned int src,dst;
-
-
-	//get the source IP address
-	header_p->source = htonl(/*hex representation of IP address*/);
-	header_p->dest = htonl(/*hex representation of IP address*/);
-
-	//debugging utilities: just to be able to print what the ehader source and estination values are
-	src = header_p->source;
-	dst = header_p->dest;
-
-	//this will be our packet message (payload) We will fill this with a header and a message
-	my_byte = byte_p[1607];
-
-	//This will be where we create our packet header, and put it in the payload
-
-}
-
-int deencapsulate_packet(char* buffer)
-{
-	/*Since we know how the packets are encapsulated (see above) we can just parse out our header and our message body*/
-}
-
-/*
- * Create our packet headers
- */
-int create_ethernet_header()
-{
-	struct ether_addr
-	{
-		u_int8_t ether_addr_octet[ETH_ALEN];
-	} __attribute__ ((__packed__));
-	/* 10Mb/s ethernet header */
-
-	struct ether_header
-	{
-		u_int8_t ether_dhost[ETH_ALEN]; /* destination eth addr */
-		u_int8_t ether_shost[ETH_ALEN]; /* source ether addr */
-		u_int16_t ether_type; /* packet type ID field */
-	} __attribute__ ((__packed__));
-
-
-}
-/*
- * END Encapsulate(create) and de-encapsulate(interpret) packets code 
- */
-
-
+/**
+ * if server use connectfd
+ * if client use socketfd
 
 
 /*
@@ -353,24 +250,40 @@ int allocate_tunnel(char *dev, int flags) {
  */
 int main(int argc, char** argv)
 {
-	if(argc != 3 || argc != 4)
-	{
-		return graceful_close(-1);
+	
+	int 
+
+	/* Server Mode */
+	if(argc == 3) {
+
+	} 
+	/* Client Mode */
+	else if(argc == 4) {
+
+	} 
+	/* Wrong Arguments */
+	else {
+		perror("Usage:
+				/tFor the 1st proxy (e.g. on machine X)
+					/t/tcs352proxy <port> <local interface>
+				/tFor the 2nd proxy (e.g. on machine Y)
+					/t/tcs352proxy <remote host> <remote port> <local interface>");
+		return -1;
 	}
 
-	int sock_descr = open_socket(argv[0]);
+	//int sock_descr = open_socket(argv[0]);
 	//thread identifier
-	pthread_t vtap_pth, sock_pth;	
-	int i = 0;
+	//pthread_t vtap_pth, sock_pth;	
+	//int i = 0;
 
 	/* Create tap thread */
-	pthread_create(&vtap_pth,NULL,vtap_listener,"processing...");
+	//pthread_create(&vtap_pth,NULL,vtap_listener,"processing...");
 
 	/* Create tcp listener thread */
-	pthread_create(&sock_th,NULL,tcp_listener(sock_descr, argc, argv),"processing...");
+	//pthread_create(&sock_th,NULL,tcp_listener(sock_descr, argc, argv),"processing...");
 
-	pthread_join(&vtap_pth, 0);
-	pthread_join(&sock_pth, 0);
+	//pthread_join(&vtap_pth, 0);
+	//pthread_join(&sock_pth, 0);
 
 	return 0;
 }
