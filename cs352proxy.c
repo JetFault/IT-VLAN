@@ -90,34 +90,67 @@ tap_thread(void* arg)
 	}
 }
 
-	bindOrConnect() {
-		//if server
-		// bind
-		// listen
-		// accept
-		// SET connectFD = to connectFD
-		//else if client
-		// connect
-		// SET connectFD = connect
+	bindOrConnect() 
+	{
+		if(server = 1)
+		{
+			//BIND PORT
+			//SET PORT LISTEN
+			//SET PORT ACCEPT CONNECTION
+			conn_fd = conn_fd;
+		}
+		else
+		{
+			conn_fd = connect;
+		}
 	}
 
-	int tcp_thread(void* arg) {
-		int socketFD, currentFD;
+	int tcp_thread(void* arg) 
+	{
+		int sock_fd, curr_fd;
 		socketFD = (int)arg;
-		// call bindOrConnect
-		// start tap thread with socket as argument
-		//if server currentFD = connectFD, else currentFD = socketF
-		//loop forever:
-		//	read from open connection (this will give you packtype)
-		//IF packtype is correct
-		//	read again to get length
-		//  read packet of specified length
-		//  write to tap
-		//  read from tap
-		//  do 3 writes again (packType then packLength then packData)
-		//ELSE
-		//  do two reads but discard them
-		//  thats it
+		int BOC = bindOrConnect;
+		
+		pthread_t tap;
+		int tapret;
+		tapret = pthread_create( &tap, NULL, tap_thread, arg);
+		
+		if(server = 1)
+		{
+			curr_fd = connectFD;
+		}
+		else
+		{
+			curr_fd = sock_fd;
+		}
+		
+		for(;;)
+		{
+			//READ FROM OPEN CONNECTION (GET PACKTYPE)
+			
+			if(PACKTYPE IS CORRECT)
+			{
+				//READ AGAIN TO GET LENGTH
+				read(packet of spec. length);
+				
+				write_to_tap(packet);
+				
+				reaD_from_tap()
+				
+				write type(0xABCD)
+				write length
+				write data
+				
+			}
+			else
+			{
+				read_from_tap();
+				read_from_tap();
+			}
+			
+		}
+	}
+
 
 		int main(int argc, char* argv[]) 
 		{
