@@ -17,7 +17,10 @@
 #include <sys/time.h>
 #define BUF_SIZE 2048
 
-int PORT, connectFD, tapFD;
+int server = 0;
+int client = 0;
+
+int PORT, conn_fd, tapFD;
 char* HOST;
 char* TAP_DEV;
 
@@ -56,26 +59,36 @@ int allocate_tunnel(char *dev, int flags) {
 }
 
 
-tap_thread(void* arg) {
-	int socketFD, currentFD;
+tap_thread(void* arg) 
+{
+	int sock_fd, curr_fd;
 	socketFD = (int)arg;
 	char *if_name = “tap0”;
-	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) {
+	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) 
+	{
 		perror("Opening tap interface failed! \n");
 		exit(1);
-
-
-		/* now you can read/write on tap_fd */
-		//open tunnel (wherever you do this set tapFD = to the tunnel you open)
-		//loop forever
-		//if server currentFD = connectFD, else currentFD = socketFD
-		//in loop:
-		//	read from tap
-		//  then we do 3 writes
-		//  first we write type(0xABCD)
-		//  then we write length
-		//  then we write data
 	}
+
+
+	if (server = 1)
+	{
+		curr_fd = conn_fd;
+	}
+	else if(server = 0)
+	{
+		curr_fd = sock_fd;
+	}
+	for(;;)
+	{
+		//COPY CODE TO WRITE PACKET TO SOCKET HERE
+		//read from tap??
+		write type(0xABCD)
+		write length
+		write data
+			
+	}
+}
 
 	bindOrConnect() {
 		//if server
@@ -110,14 +123,14 @@ tap_thread(void* arg) {
 		{
 			if(argc == 3)
 			{
-
+				server = 1;
 			}
 			//check if argc == 3
 			// if it does then we are server, set PORT and TAP_DEV
 
 			else if (argc == 4)
 			{
-
+				
 			}
 			//check if argc == 4
 			// if it does then we are client, set HOST, PORT, TAP_DEV
