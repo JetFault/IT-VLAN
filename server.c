@@ -6,17 +6,19 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#define BUF_SIZE 500
-
-int main(int port) {
+/**
+ * Connect server to a port.
+ * param port: port number
+ * return: file descriptor for the socket
+ */
+int server_connect(char* port) {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
 	int sfd, ret_status;
 	struct sockaddr_storage peer_addr;
 	socklen_t peer_addr_len;
-	ssize_t nread;
-	char buf[BUF_SIZE];
 
+	/* Set up getaddrinfo for connecting to host */
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
 	hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
@@ -36,49 +38,27 @@ int main(int port) {
 		 Try each address until we successfully bind(2).
 		 If socket(2) (or bind(2)) fails, we (close the socket
 		 and) try the next address. */
-
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		sfd = socket(rp->ai_family, rp->ai_socktype,
 				rp->ai_protocol);
 		if (sfd == -1)
 			continue;
 
-		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0)
+		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0) {
 			break;                  /* Success */
+		}
+
 		close(sfd);
 	}
 
-	if (rp == NULL) {               /* No address succeeded */
-		fprintf(stderr, "Could not bind\n");
+	//No address succeeded
+	if (rp == NULL) {
+		fprintf(stderr, "Could not bind, no address succeeded.\n");
 		exit(EXIT_FAILURE);
 	}
 
-	freeaddrinfo(result);           /* No longer needed */
+	//No longer needed
+	freeaddrinfo(result);
 
-	/* Read datagrams and echo them back to sender */
-
-	for (;;) {
-		peer_addr_len = sizeof(struct sockaddr_storage);
-		nread = recvfrom(sfd, buf, BUF_SIZE, 0,
-				(struct sockaddr *) &peer_addr, &peer_addr_len);
-		if (nread == -1)
-			continue;               /* Ignore failed request */
-
-		char host[NI_MAXHOST], service[NI_MAXSERV];
-
-		s = getnameinfo((struct sockaddr *) &peer_addr,
-				peer_addr_len, host, NI_MAXHOST,
-				service, NI_MAXSERV, NI_NUMERICSERV);
-		if (s == 0)
-			printf("Received %ld bytes from %s:%s\n",
-					(long) nread, host, service);
-		else
-			fprintf(stderr, "getnameinfo: %s\n", gai_strerror(s));
-
-		if (sendto(sfd, buf, nread, 0,
-					(struct sockaddr *) &peer_addr,
-					peer_addr_len) != nread)
-			fprintf(stderr, "Error sending response\n");
-	}
+	return sfd;
 }
-
