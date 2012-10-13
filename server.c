@@ -6,6 +6,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include "server.h"
+
 /**
  * Connect server to a port.
  * param port: port number
