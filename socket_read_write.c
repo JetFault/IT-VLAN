@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "socket_read_write.h"
+
 int write_socket(int socket_fd, char* datagram) {
 	unsigned int len;
 	char buf[BUF_SIZE];

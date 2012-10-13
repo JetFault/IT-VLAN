@@ -1,10 +1,5 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#ifndef _SOCKET_READ_WRITE_H_
+#define _SOCKET_READ_WRITE_H_
 
 /**
  * Write to a socket.
@@ -24,3 +19,4 @@ int write_socket(int socket_fd, char* datagram);
  */
 int read_socket(int socket_fd, char* datagram_store, unsigned int length);
 
+#endif

@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "client.h"
+
 /**
  * Connect client to a host and port.
  * param host: either hostname or IP
