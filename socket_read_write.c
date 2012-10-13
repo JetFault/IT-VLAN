@@ -41,6 +41,9 @@ int read_socket(int socket_fd, char* datagram_store, unsigned int length) {
 		exit(EXIT_FAILURE);
 	}
 
+	//Null Terminate
+	datagram_store[nread] = '\0';
+
 	printf("Received %ld bytes: %s\n", (long) nread, buf);
 	
 	return nread;
