@@ -1,0 +1,17 @@
+1) Who is in the group?
+	Karina Ruzinov, Yaroslav(Jerry) Reptak, Ivan Parra-Orlandoni.
+
+2) What each group member did, what did he or she contribute to the project?
+	Jerry – Developed the TCP port thread
+	Ivan – Developed the VTAP Listener Thread
+	Karina – Developed the packet functions (encapsulation, sending, receiving, etc...)
+	All three – Worked on general program architecture.
+
+3) Describe the general architecture of your program, what each function does and how it does it.
+	Our program starts off by prompting the user for inputs. If there are 3 inputs, the program starts in server mode (delineated by a global variable). In server mode, the program Bind a port to a TCP socket, listens on the socket, and accepts incoming connections on the socket. The program interprets incoming packets in a slightly different way... the way the client is set up, instead of sending an amalgamated struct of a packet, it sends three different datum: the packet type, the packet length, and the packet body. The server then reads these packets one at a time and passes them into the Vtap listener. The Vtap listener then writes these packets.
+	In client mode, the program binds a port to create an outgoing TCP connection. The socket opens a connection to the server, and transmits packets in the way previously mentioned.
+
+4) What difficulties you had, challenges you encountered, how you solved them, and which are left open?
+	We had trouble interpreting the function of the vtap listener. We also had trouble conceptualizing program flow as presented in assignment... we ended up having to come up with our own program flow.
+	One of the more annoying parts was trying to figure out how to read and write packets from an incoming connection. 
+
