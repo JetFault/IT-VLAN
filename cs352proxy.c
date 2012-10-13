@@ -106,6 +106,11 @@ tap_thread(void* arg)
 
 	int tcp_thread(void* arg) 
 	{
+		unsigned int size_16 = 16;
+		unsigned int sizE_2048 = 2048;
+		char* buff_16 = malloc(sizeof(char) * 16);
+		char* buff_2048 = malloc*sizeof(char) * 2048);
+				
 		int sock_fd, curr_fd;
 		socketFD = (int)arg;
 		int BOC = bindOrConnect;
@@ -125,16 +130,16 @@ tap_thread(void* arg)
 		
 		for(;;)
 		{
-			socket_read(curr_fd)
+			socket_read(curr_fd, buff_16, size_16);
 			
 			if(PACKTYPE IS CORRECT)
 			{
 				//READ AGAIN TO GET LENGTH
-				socket_read(curr_fd);
+				socket_read(curr_fd, buff_16, size_16);
 				
 				socket_write(curr_fd, (char*) arg);
-								
-				socket_read(curr_fd);
+
+				socket_read(curr_fd, buff_2048, size_2048);
 				
 				socket_write(curr_fd, type);
 				socket_write(curr_fd, packlength);
