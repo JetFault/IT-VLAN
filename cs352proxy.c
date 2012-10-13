@@ -28,6 +28,8 @@ int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
 
+char* TAP_NAME;
+
 void* run_tap_thread(void* arg) {
 	int tap_fd = (int)arg;
 	char *if_name = "tap0";
@@ -40,7 +42,7 @@ void* run_tap_thread(void* arg) {
 	unsigned short int h_type = 0;
 	unsigned short int h_size = 0;
 
-	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) {
+	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PI)) < 0 ) {
 		perror("Opening tap interface failed! \n");
 		exit(1);
 	}
@@ -73,7 +75,7 @@ void* run_tcp_thread(void* socket_arg) {
 	for(;;)
 	{
 		//Get Type
-		socket_read(socket_fd, h_type, HEADER_TYPE_SIZE);
+		socket_read(socket_fd, (char*)&h_type, HEADER_TYPE_SIZE);
 
 		//Correct packet type
 		if(ntohs(h_type) == 0xABCD) {
@@ -132,13 +134,21 @@ void* run_tcp_thread(void* socket_arg) {
 int main(int argc, char** argv) {
 	pthread_t tcp_thread;
 
+
+	TAP_NAME = malloc(strlen(argv[2]) + 1);
 	/* Server Mode */
 	if(argc == 3) {
+		char * tap_arg = argv[2];
+		TAP_NAME = malloc(strlen(tap_arg) + 1);
+		TAP_NAME = strcpy(TAP_NAME, tap_arg);
 		tcp_fd = server_connect(argv[1]);
 	} 
 	/* Client Mode */
 	else if(argc == 4) {
-		tcp_fd = client_connect(argv[2], argv[3]);
+		char * tap_arg = argv[3];
+		TAP_NAME = malloc(strlen(tap_arg) + 1);
+		TAP_NAME = strcpy(TAP_NAME, tap_arg);
+		tcp_fd = client_connect(argv[1], argv[2]);
 	} 
 	/* Wrong Arguments */
 	else {

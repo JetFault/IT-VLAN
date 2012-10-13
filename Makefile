@@ -1,5 +1,5 @@
 CC = gcc
-CCFLAGS = -Wall -g
+CCFLAGS = -g
 
 all: cs352proxy 
 
