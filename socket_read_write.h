@@ -7,7 +7,7 @@
  * param datagram: null escaped string to write
  * return: number of bytes written
  */
-int write_socket(int socket_fd, char* datagram);
+int socket_write(int socket_fd, char* datagram, unsigned short int length);
 
 /**
  * Read `length` bytes from a socket and store in `datagram_store`.
@@ -17,6 +17,6 @@ int write_socket(int socket_fd, char* datagram);
  * param length: number of bytes to read from socket
  * return: number of bytes read
  */
-int read_socket(int socket_fd, char* datagram_store, unsigned int length);
+int socket_read(int socket_fd, char* datagram_store, unsigned short int length);
 
 #endif

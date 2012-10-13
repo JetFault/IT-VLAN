@@ -8,19 +8,21 @@
 
 #include "socket_read_write.h"
 
-int write_socket(int socket_fd, char* datagram) {
+#define HEADER_SIZE_SIZE 2
+#define HEADER_TYPE_SIZE 2
+#define DATAGRAM_SIZE 2048 - HEADER_SIZE_SIZE - HEADER_TYPE_SIZE
+
+int socket_write(int socket_fd, char* datagram, unsigned short int length) {
 	unsigned int len;
-	char buf[BUF_SIZE];
 
 	/* Read datagrams, and read responses from server */
 
 	//+1 for terminating null byte
 	len = strlen(datagram) + 1;
 
-	if (len + 1 > BUF_SIZE) {
+	if (len + 1 > DATAGRAM_SIZE) {
 		fprintf(stderr,
 				"Datagram too big sending anyway.");
-		continue;
 	}
 
 	if (write(socket_fd, datagram, len) != len) {
@@ -33,7 +35,7 @@ int write_socket(int socket_fd, char* datagram) {
 
 }
 
-int read_socket(int socket_fd, char* datagram_store, unsigned int length) {
+int socket_read(int socket_fd, char* datagram_store, unsigned short int length) {
 	int nread;
 
 	nread = read(socket_fd, datagram_store, length);
@@ -46,7 +48,7 @@ int read_socket(int socket_fd, char* datagram_store, unsigned int length) {
 	//Null Terminate
 	datagram_store[nread] = '\0';
 
-	printf("Received %ld bytes: %s\n", (long) nread, buf);
+	printf("Received %ld bytes: %s\n", (long) nread, datagram_store);
 	
 	return nread;
 }

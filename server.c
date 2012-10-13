@@ -16,9 +16,7 @@
 int server_connect(char* port) {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
-	int sfd, ret_status;
-	struct sockaddr_storage peer_addr;
-	socklen_t peer_addr_len;
+	int sfd, accept_sfd, ret_status;
 
 	/* Set up getaddrinfo for connecting to host */
 	memset(&hints, 0, sizeof(struct addrinfo));
@@ -32,7 +30,7 @@ int server_connect(char* port) {
 
 	ret_status = getaddrinfo(NULL, port, &hints, &result);
 	if (ret_status != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(ret_status));
 		exit(EXIT_FAILURE);
 	}
 
@@ -59,8 +57,21 @@ int server_connect(char* port) {
 		exit(EXIT_FAILURE);
 	}
 
+	if(listen(sfd, 10) == -1) {
+		fprintf(stderr, "Could not listen.\n");
+		close(sfd);
+		exit(EXIT_FAILURE);
+	}
+
+	accept_sfd = accept(sfd, NULL, NULL);
+	if(accept_sfd < 1) {
+		fprintf(stderr, "Couldn't accept connection");
+		close(sfd);
+		exit(EXIT_FAILURE);
+	}
+
 	//No longer needed
 	freeaddrinfo(result);
 
-	return sfd;
+	return accept_sfd;
 }
