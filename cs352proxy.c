@@ -62,7 +62,7 @@ int allocate_tunnel(char *dev, int flags) {
 tap_thread(void* arg) 
 {
 	int sock_fd, curr_fd;
-	socketFD = (int)arg;
+	sock_fd = (int)arg;
 	char *if_name = “tap0”;
 	if ( (tap_fd = allocate_tunnel(if_name, IFF_TAP | IFF_NO_PI)) < 0 ) 
 	{
@@ -81,12 +81,11 @@ tap_thread(void* arg)
 	}
 	for(;;)
 	{
-		//COPY CODE TO WRITE PACKET TO SOCKET HERE
-		//read from tap??
-		write type(0xABCD)
-		write length
-		write data
-			
+		write_socket(curr_fd, (char*) arg);
+		write_socket(curr_fd, (char*) arg);
+		write_socket(curr_fd, (char*) arg);
+		
+		read_socket(curr_fd, (char*) arg);
 	}
 }
 
@@ -126,20 +125,20 @@ tap_thread(void* arg)
 		
 		for(;;)
 		{
-			//READ FROM OPEN CONNECTION (GET PACKTYPE)
+			socket_read(curr_fd)
 			
 			if(PACKTYPE IS CORRECT)
 			{
 				//READ AGAIN TO GET LENGTH
-				read(packet of spec. length);
+				socket_read(curr_fd);
 				
-				write_to_tap(packet);
+				socket_write(curr_fd, (char*) arg);
+								
+				socket_read(curr_fd);
 				
-				reaD_from_tap()
-				
-				write type(0xABCD)
-				write length
-				write data
+				socket_write(curr_fd, type);
+				socket_write(curr_fd, packlength);
+				socket_write(curr_fd, packdata)
 				
 			}
 			else
@@ -152,8 +151,7 @@ tap_thread(void* arg)
 	}
 
 
-		int main(int argc, char* argv[]) 
-		{
+		int main(int argc, char* argv[]) {
 			if(argc == 3)
 			{
 				server = 1;
