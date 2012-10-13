@@ -6,20 +6,18 @@
 #include <unistd.h>
 #include <string.h>
 
-
-#define HEADER_SIZE 16
-#define BUF_SIZE 2048 - HEADER_SIZE 
-
-int main(char* host, char* port, char* data) {
+/**
+ * Connect client to a host and port.
+ * param host: either hostname or IP
+ * param port: port number
+ * return: file descriptor for the socket
+ */
+int client_connect(char* host, char* port) {
 	struct addrinfo hints;
 	struct addrinfo *result, *rp;
-	int sfd, ret_status, j;
-	size_t len;
-	ssize_t nread;
-	char buf[BUF_SIZE];
+	int sfd, ret_status;
 
 	/* Obtain address(es) matching host/port */
-
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
 	hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
@@ -50,12 +48,21 @@ int main(char* host, char* port, char* data) {
 		close(sfd);
 	}
 
-	if (rp == NULL) {               /* No address succeeded */
+	//No address succeeded
+	if (rp == NULL) {
 		fprintf(stderr, "Could not connect\n");
 		exit(EXIT_FAILURE);
 	}
 
-	freeaddrinfo(result);           /* No longer needed */
+	//No longer needed
+	freeaddrinfo(result);
+
+	return sfd;
+}
+
+int write_socket(int socket_fd, char* datagram) {
+	unsigned int len;
+	char buf[BUF_SIZE];
 
 	/* Read datagrams, and read responses from server */
 
@@ -64,23 +71,32 @@ int main(char* host, char* port, char* data) {
 
 	if (len + 1 > BUF_SIZE) {
 		fprintf(stderr,
-				"Ignoring long message in argument\n");
+				"Datagram too big sending anyway.");
 		continue;
 	}
 
-	if (write(sfd, datagram, len) != len) {
-		fprintf(stderr, "partial/failed write\n");
+	if (write(socket_fd, datagram, len) != len) {
+		fprintf(stderr, "Partial or Failed write.");
+		close(socket_fd);
 		exit(EXIT_FAILURE);
 	}
 
-	nread = read(sfd, buf, BUF_SIZE);
+	return len;
+
+}
+
+int read_socket(int socket_fd, char* datagram_store, unsigned int length) {
+	int nread;
+
+	nread = read(socket_fd, datagram_store, length);
 	if (nread == -1) {
-		perror("read");
+		perror("Read failed.");
+		close(socket_fd);
 		exit(EXIT_FAILURE);
 	}
 
 	printf("Received %ld bytes: %s\n", (long) nread, buf);
-
-	exit(EXIT_SUCCESS);
+	
+	return nread;
 }
 
