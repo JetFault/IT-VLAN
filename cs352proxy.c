@@ -162,5 +162,7 @@ int main(int argc, char** argv) {
 
 	pthread_create(&tcp_thread, NULL, run_tcp_thread, (void *)tcp_fd);
 
+  (void) pthread_join(tcp_thread, NULL);
+
 	return 0;
 }

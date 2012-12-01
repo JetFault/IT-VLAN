@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -21,7 +22,7 @@ int server_connect(char* port) {
 	/* Set up getaddrinfo for connecting to host */
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
-	hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
+	hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
 	hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
 	hints.ai_protocol = 0;          /* Any protocol */
 	hints.ai_canonname = NULL;
@@ -41,6 +42,7 @@ int server_connect(char* port) {
 	for (rp = result; rp != NULL; rp = rp->ai_next) {
 		sfd = socket(rp->ai_family, rp->ai_socktype,
 				rp->ai_protocol);
+
 		if (sfd == -1)
 			continue;
 
@@ -59,6 +61,7 @@ int server_connect(char* port) {
 
 	if(listen(sfd, 10) == -1) {
 		fprintf(stderr, "Could not listen.\n");
+		fprintf(stderr, "Error: %s\n", strerror(errno));
 		close(sfd);
 		exit(EXIT_FAILURE);
 	}
