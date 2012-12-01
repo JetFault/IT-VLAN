@@ -4,8 +4,9 @@
 struct packet {
 	int listenport;
 	int linkperiod;
-	int linkTimeout;
+	int linktimeout;
 	char* peer;
+	int port;
 	int quitafter;
 };
 
