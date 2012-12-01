@@ -5,8 +5,9 @@
  * Connect client to a host and port.
  * param host: either hostname or IP
  * param port: port number
- * return: file descriptor for the socket
+ * param socket_fd: source socket file descriptor
+ * return: file descriptor for the connected destination socket
  */
-int client_connect(char* host, char* port);
+int client_connect(char* host, int port, int socket_fd);
 
 #endif

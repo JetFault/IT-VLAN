@@ -4,8 +4,9 @@
 /**
  * Connect server to a port.
  * param port: port number
- * return: file descriptor for the socket
+ * param: file descriptor for the source socket
+ * return: file descriptor for the destination accepted socket
  */
-int server_connect(char* port);
+int server_connect(int port, int socket_fd);
 
 #endif
