@@ -6,7 +6,8 @@
 #define LINE_SIZE 256
 struct packet* config;
 
- parse_file(char* input_file){
+/* Reading from the Config file */
+parse_file(char* input_file){
 
 	FILE* config_file;
 	char line_buffer[LINE_SIZE];
