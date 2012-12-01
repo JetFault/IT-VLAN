@@ -31,10 +31,10 @@ int tap_fd = -1;
 char* TAP_NAME;
 
 void* run_tap_thread(void* arg) {
-	int tap_fd = (int)arg;
+	int socket_fd = (int)arg;
 	char *if_name = "tap0";
 
-	int socket_fd = tcp_fd;
+	//int socket_fd = tcp_fd;
 
 	unsigned short int data_size = 0;
 
@@ -50,6 +50,10 @@ void* run_tap_thread(void* arg) {
 	for(;;)
 	{
 		data_size = socket_read(tap_fd, buff_tap_datagram, DATAGRAM_SIZE);
+
+    if(data_size == 0) {
+      continue;
+    }
 
 		h_type = htons(0xABCD);
 		h_size = htons(data_size);
@@ -134,29 +138,32 @@ void* run_tcp_thread(void* socket_arg) {
 int main(int argc, char** argv) {
 	pthread_t tcp_thread;
 
-
-	TAP_NAME = malloc(strlen(argv[2]) + 1);
-	/* Server Mode */
-	if(argc == 3) {
-		char * tap_arg = argv[2];
-		TAP_NAME = malloc(strlen(tap_arg) + 1);
-		TAP_NAME = strcpy(TAP_NAME, tap_arg);
-		tcp_fd = server_connect(argv[1]);
-	} 
-	/* Client Mode */
-	else if(argc == 4) {
-		char * tap_arg = argv[3];
-		TAP_NAME = malloc(strlen(tap_arg) + 1);
-		TAP_NAME = strcpy(TAP_NAME, tap_arg);
-		tcp_fd = client_connect(argv[1], argv[2]);
-	} 
+  if(argc == 3 || argc == 4) {
+    /* Server Mode */
+    if(argc == 3) {
+      char * tap_arg = argv[2];
+      TAP_NAME = malloc(strlen(tap_arg) + 1);
+      TAP_NAME = strcpy(TAP_NAME, tap_arg);
+      server = 1;
+      tcp_fd = server_connect(atoi(argv[1]));
+    } 
+    /* Client Mode */
+    else if(argc == 4) {
+      char * tap_arg = argv[3];
+      TAP_NAME = malloc(strlen(tap_arg) + 1);
+      TAP_NAME = strcpy(TAP_NAME, tap_arg);
+      server = 0;
+      tcp_fd = client_connect(argv[1], atoi(argv[2]));
+    } 
+    int socket_fd = initialize_tcp();
+  }
 	/* Wrong Arguments */
 	else {
 		perror("Usage: \
-				/tFor the 1st proxy (e.g. on machine X) \
-				/t/tcs352proxy <port> <local interface> \
-				/tFor the 2nd proxy (e.g. on machine Y) \
-				/t/tcs352proxy <remote host> <remote port> <local interface>");
+				\tFor the 1st proxy (e.g. on machine X) \
+				\t\tcs352proxy <port> <local interface> \
+				\tFor the 2nd proxy (e.g. on machine Y) \
+				\t\tcs352proxy <remote host> <remote port> <local interface>");
 		return -1;
 	}
 

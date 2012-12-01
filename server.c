@@ -14,67 +14,38 @@
  * param port: port number
  * return: file descriptor for the socket
  */
-int server_connect(char* port) {
-	struct addrinfo hints;
-	struct addrinfo *result, *rp;
-	int sfd, accept_sfd, ret_status;
+int server_connect(int port, int socket_fd) {
+	int connection_fd, ret_status;
 
-	/* Set up getaddrinfo for connecting to host */
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
-	hints.ai_socktype = SOCK_STREAM; /* Datagram socket */
-	hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
-	hints.ai_protocol = 0;          /* Any protocol */
-	hints.ai_canonname = NULL;
-	hints.ai_addr = NULL;
-	hints.ai_next = NULL;
+	struct sockaddr_in stSockAddr;
+	memset(&stSockAddr, 0, sizeof(stSockAddr));
+	stSockAddr.sin_family = AF_INET;
+	stSockAddr.sin_port = htons(port);
 
-	ret_status = getaddrinfo(NULL, port, &hints, &result);
-	if (ret_status != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(ret_status));
-		exit(EXIT_FAILURE);
-	}
+  stSockAddr.sin_addr.s_addr = INADDR_ANY;
 
-	/* getaddrinfo() returns a list of address structures.
-		 Try each address until we successfully bind(2).
-		 If socket(2) (or bind(2)) fails, we (close the socket
-		 and) try the next address. */
-	for (rp = result; rp != NULL; rp = rp->ai_next) {
-		sfd = socket(rp->ai_family, rp->ai_socktype,
-				rp->ai_protocol);
+  /* Bind */
+  if(bind(socket_fd, (struct sockaddr*)&stSockAddr, sizeof(stSockAddr))) {
+    fprintf(stderr, "Binding failed.");
+    close(socket_fd);
+    exit(EXIT_FAILURE);
+  }
 
-		if (sfd == -1)
-			continue;
+  errno = 0;
+  
+  /* Listen */
+  if(listen(socket_fd, 10) == -1) {
+    fprintf(stderr, "Listening on device Failed. Error: %s\n", strerror(errno));
+    close(socket_fd);
+    exit(EXIT_FAILURE);
+  }
+  
+  /* Accept */
+  if((connection_fd = accept(socket_fd, NULL, NULL)) <= 0) {
+    fprintf(stderr, "Accept failed. Error Code: %d", connection_fd);
+    close(socket_fd);
+    exit(EXIT_FAILURE);
+  }
 
-		if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0) {
-			break;                  /* Success */
-		}
-
-		close(sfd);
-	}
-
-	//No address succeeded
-	if (rp == NULL) {
-		fprintf(stderr, "Could not bind, no address succeeded.\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if(listen(sfd, 10) == -1) {
-		fprintf(stderr, "Could not listen.\n");
-		fprintf(stderr, "Error: %s\n", strerror(errno));
-		close(sfd);
-		exit(EXIT_FAILURE);
-	}
-
-	accept_sfd = accept(sfd, NULL, NULL);
-	if(accept_sfd < 1) {
-		fprintf(stderr, "Couldn't accept connection");
-		close(sfd);
-		exit(EXIT_FAILURE);
-	}
-
-	//No longer needed
-	freeaddrinfo(result);
-
-	return accept_sfd;
+	return connection_fd;
 }

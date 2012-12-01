@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>
+#include <arpa/inet.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -14,50 +15,70 @@
  * param port: port number
  * return: file descriptor for the socket
  */
-int client_connect(char* host, char* port) {
-	struct addrinfo hints;
-	struct addrinfo *result, *rp;
-	int sfd, ret_status;
+int client_connect(char* host, int port, int socket_fd) {
+  int connection_fd, ret_status;
 
-	/* Obtain address(es) matching host/port */
-	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
-	hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
-	hints.ai_flags = 0;							/* Null out flags */
-	hints.ai_protocol = 0;          /* Any protocol */
+  struct sockaddr_in stSockAddr;
+  memset(&stSockAddr, 0, sizeof(stSockAddr));
+  stSockAddr.sin_family = AF_INET;
+  stSockAddr.sin_port = htons(port);
 
-	ret_status = getaddrinfo(host, port, &hints, &result);
-	if (ret_status != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(ret_status));
-		exit(EXIT_FAILURE);
-	}
+  ret_status = inet_pton(AF_INET, host, &stSockAddr.sin_addr);
+  if(ret_status != 1){
+    fprintf(stderr, "Error: Could not bind to host. Return Status: %d", ret_status);
+    exit(EXIT_FAILURE);
+  }
 
-	/* getaddrinfo() returns a list of address structures.
-		 Try each address until we successfully connect(2).
-		 If socket(2) (or connect(2)) fails, we (close the socket
-		 and) try the next address. */
-	for (rp = result; rp != NULL; rp = rp->ai_next) {
-		sfd = socket(rp->ai_family, rp->ai_socktype,
-				rp->ai_protocol);
-		if (sfd == -1)
-			continue;
+  struct sockaddr_in to;    /* remote internet address */ 
+  struct hostent *hp;       /* remote host info from gethostbyname() */
+  memset(&to, 0, sizeof(to));
 
-		if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
-			//Success
-			break;
-		}
-		//Not the correct fd, close it
-		close(sfd);
-	}
+  to.sin_family = AF_INET; 
+  o.sin_port = htons(port);  
 
-	//No address succeeded
-	if (rp == NULL) {
-		fprintf(stderr, "Could not connect\n");
-		exit(EXIT_FAILURE);
-	}
+  /* If internet "a.d.c.d" address is specified, use inet_addr()
 
-	//No longer needed
-	freeaddrinfo(result);
+   * to convert it into real address.  If host name is specified,
 
-	return sfd;
+   * use gethostbyname() to resolve its address */ 
+
+  to.sin_addr.s_addr = inet_addr(hostname); /* If "a.b.c.d" addr */ 
+
+  if (to.sin_addr.s_addr == -1) {     hp = gethostbyname(hostname); 
+
+    if (hp == NULL) { 
+
+      fprintf(stderr, "Host name %s not found\n", hostname); 
+
+      exit(1); 
+
+    } 
+
+    bcopy(hp->h_addr, &to.sin_addr, hp->h_length); 
+
+  } 
+
+  /* CODE TO OPEN THE SOCKET GOES HERE */ 
+
+  /* give the connect call the sockaddr_in struct that has the address
+
+   * in it on the connect call */ 
+
+  if (connect(s, &to, sizeof(to)) < 0) { 
+
+    perror("connect"); 
+
+    exit(-1); 
+
+  }
+
+
+  connection_fd = connect(socket_fd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr));
+  if(connection_fd == -1) {
+    perror("connect failed");
+    close(socket_fd);
+    exit(EXIT_FAILURE);
+  }
+
+  return connection_fd;
 }
