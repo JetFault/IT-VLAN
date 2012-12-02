@@ -19,11 +19,13 @@
 #include "socket_read_write.h"
 #include "server.h"
 #include "client.h"
+#include "linkstate.h"
 
 #define HEADER_SIZE_SIZE 2
 #define HEADER_TYPE_SIZE 2
 #define DATAGRAM_SIZE 2048 - HEADER_SIZE_SIZE - HEADER_TYPE_SIZE
 
+struct config* conf;
 int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
@@ -41,8 +43,9 @@ void* run_tap_thread(void* arg) {
 	char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
 	unsigned short int h_type = 0;
 	unsigned short int h_size = 0;
+	char* local_mac = malloc(sizeof(char)*6);
 
-	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PI)) < 0 ) {
+	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PIi,local_mac)) < 0 ) {
 		perror("Opening tap interface failed! \n");
 		exit(1);
 	}
@@ -71,10 +74,6 @@ void* run_tcp_thread(void* socket_arg) {
 	char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
 
 	int socket_fd = (int)socket_arg;
-
-	//Start Tap Thread
-	pthread_t tap_thread;
-	pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
 
 	for(;;)
 	{
@@ -136,18 +135,25 @@ void* run_tcp_thread(void* socket_arg) {
  * Create threads for the tap device and for the socket.
  */
 int main(int argc, char** argv) {
-	pthread_t tcp_thread;
+	pthread_t tcp_thread, tap_thread;
 
-  if(argc == 3 || argc == 4) {
+	if(argc == 2)
+		struct peerlist* list = parse_file(argv[1], conf);
+	else
+		exit(EXIT_FAILURE);
+
+	
+ /* if(argc == 3 || argc == 4) {*/
     /* Server Mode */
-    if(argc == 3) {
+    /*if(argc == 3) {
       char * tap_arg = argv[2];
       TAP_NAME = malloc(strlen(tap_arg) + 1);
       TAP_NAME = strcpy(TAP_NAME, tap_arg);
       server = 1;
       tcp_fd = server_connect(atoi(argv[1]));
-    } 
+    } */
     /* Client Mode */
+    /*
     else if(argc == 4) {
       char * tap_arg = argv[3];
       TAP_NAME = malloc(strlen(tap_arg) + 1);
@@ -156,20 +162,28 @@ int main(int argc, char** argv) {
       tcp_fd = client_connect(argv[1], atoi(argv[2]));
     } 
     int socket_fd = initialize_tcp();
-  }
+  }*/
 	/* Wrong Arguments */
-	else {
+/*	else {
 		perror("Usage: \
 				\tFor the 1st proxy (e.g. on machine X) \
 				\t\tcs352proxy <port> <local interface> \
 				\tFor the 2nd proxy (e.g. on machine Y) \
 				\t\tcs352proxy <remote host> <remote port> <local interface>");
 		return -1;
-	}
+	}*/
 
 	pthread_create(&tcp_thread, NULL, run_tcp_thread, (void *)tcp_fd);
 
+	if(config->tap != NULL){
+		TAP_NAME = config->tap;
+		pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
+	}
+
   (void) pthread_join(tcp_thread, NULL);
+  if(config->tap !=NULL){
+  	(void) pthread_join(tap_thread, NULL);
+  } 
 
 	return 0;
 }

@@ -4,17 +4,18 @@
 #include "linkstate.h"
 
 #define LINE_SIZE 256
-struct packet* config;
 
 /* Reading from the Config file */
-parse_file(char* input_file){
+struct peerlist* parse_file(char* input_file,struct config* conf){
 
 	FILE* config_file;
 	char line_buffer[LINE_SIZE];
 	char* line = &line_buffer[0];
 	char* tok;
-	config = malloc(sizeof(struct packet));
-
+	struct peerlist* list = malloc(sizeof(struct peerlist));
+	conf = malloc(sizeof(struct config));
+	conf->tap = NULL;
+	struct peerlist* ptr = list;
 	config_file = fopen(input_file, "r");
 	
 	if(config_file == NULL)  {
@@ -34,24 +35,29 @@ parse_file(char* input_file){
 		if(tok[0] == '/') {
 			continue;
 		} else if(strcmp(tok, "listenPort") == 0) {
-			config->listenport = atoi(strtok(NULL," \n"));
+			conf->listenport = atoi(strtok(NULL," \n"));
 		} else if(strcmp(tok, "linkPeriod") == 0) {
-			config->linkperiod = atoi(strtok(NULL," \n"));
+			conf->linkperiod = atoi(strtok(NULL," \n"));
 		} else if(strcmp(tok, "linkTimeout") == 0) {
-			config->linktimeout = atoi(strtok(NULL," \n"));
+			conf->linktimeout = atoi(strtok(NULL," \n"));
 		} else if(strcmp(tok, "peer") == 0) {
 			char* temp = strtok(NULL," \n");
-			config->peer = (char*)malloc(sizeof(char)*(strlen(temp) + 1));
-			strcpy(config->peer, temp);
-			config->port = atoi(strtok(NULL, " \n"));
+			ptr->hostname  = (char*)malloc(sizeof(char)*(strlen(temp) + 1));
+			strcpy(ptr->hostname, temp);
+			ptr->port=atoi(strtok(NULL, " \n"));
+			ptr = ptr->next;
 		} else if(strcmp(tok, "quitAfter") == 0) {
-			config->quitafter = atoi(strtok(NULL," \n"));
-		} else {
+			conf->quitafter = atoi(strtok(NULL," \n"));
+		} else if(strcmp(tok, "tapDevice") == 0) {
+			char* temp = strtok(NULL, " \n");
+			conf->tap = (char*)malloc(sizeof(char)*(strlen(temp)+1));
+			strcpy(conf->tap, temp);
+		}else {
 			fprintf(stderr, "Command in config not recognized: %s", tok);
 			exit(EXIT_FAILURE);
 		}
 	}
 	fclose(config_file);
 	
-	return;
+	return list;
 }
