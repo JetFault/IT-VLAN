@@ -29,31 +29,33 @@ int tap_fd = -1;
 char* TAP_NAME;
 
 void delete_members() {
-	
+
 	struct timeval time;
-  struct linkstate* head = list;
-	struct linkstate* ptr = head;
+  struct linkstate* ptr = list;
+	struct linkstate* tmp;
 
 	gettimeofday(&time,NULL);
 
-	while(ptr != NULL){
+	while(ptr != NULL)	{
 		if((time.tv_sec - ptr->ID) > conf->linktimeout){
 
-      if(ptr == head) { // Delete Head
-        head = ptr->next;
-        free(ptr);
-      } else {
-        
-      }
+      if(ptr == list) { // Delete Head
+        struct linkstate* t = ptr;
+				list = list->next;
+				ptr = list;
+        free(t);
 
-			list = list->next;
-			ptr = list;
-		}
-		if((time.tv_sec - ptr->next->ID) > conf->linktimeout){			ptr->next = ptr->next->next;//deleting the next node
+      } else {
+				tmp->next = ptr->next;
+				free(ptr);
+				ptr = tmp->next;
+      }
 		}
 		else{
+			tmp = ptr;
 			ptr = ptr->next;
 		}
+
 	}
 }
 
@@ -130,7 +132,7 @@ void* run_accept_thread(void* connection_fd) {
 
 void* start_tcp_listener(void* socket_arg) {
 	int socket_fd = (int)socket_arg;
-  int listen_port = config->listenport;
+  int listen_port = conf->listenport;
 
   int connection_fd;
 
@@ -243,10 +245,12 @@ void* run_tcp_thread(void* socket_arg) {
 int main(int argc, char** argv) {
 	pthread_t tcp_thread, tap_thread, poll_thread;
 
-	if(argc == 2)
-		struct peerlist* list = parse_file(argv[1], conf);
-	else
+	if(argc == 2){
+		struct peerlist* peers = parse_file(argv[1], conf);
+	}
+	else{
 		exit(EXIT_FAILURE);
+	}
 
 	
  /* if(argc == 3 || argc == 4) {*/
@@ -281,14 +285,14 @@ int main(int argc, char** argv) {
 
 	pthread_create(&tcp_thread, NULL, run_tcp_thread, (void *)tcp_fd);
 
-	if(config->tap != NULL){
-		TAP_NAME = config->tap;
+	if(conf->tap != NULL){
+		TAP_NAME = conf->tap;
 		pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
 	}
 	pthread_create(&poll_thread, NULL, poll_membership_list); 
 
   (void) pthread_join(tcp_thread, NULL);
-  if(config->tap !=NULL){
+  if(conf->tap !=NULL){
   	(void) pthread_join(tap_thread, NULL);
   }
   pthread_join(poll_thread,NULL);

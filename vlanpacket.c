@@ -108,7 +108,8 @@ uint16_t deserialize(char *buffer, void* packet_struct) {
     char* current_ptr = (char *) (fields + sizeof(struct proxy_addr));
     uint16_t ip, port;
 
-    for(int i = 0; i < number_neighbors; i++) {
+		int i;
+    for(i = 0; i < number_neighbors; i++) {
       struct linkstate* ls_node = malloc(sizeof(struct linkstate));
 
       /* Get local address */
