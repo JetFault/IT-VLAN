@@ -26,11 +26,41 @@
 #define DATAGRAM_SIZE 2048 - HEADER_SIZE_SIZE - HEADER_TYPE_SIZE
 
 struct config* conf;
+struct linkstate* list;
 int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
 
 char* TAP_NAME;
+
+void poll_membership_list(){
+	
+	for(;;){
+	/*send packets */
+		delete_members();
+		sleep(conf->linkperiod);
+	}
+}
+
+void delete_members(){
+	
+	struct timeval time;
+	struct linkstate* ptr = list;
+
+	gettimeofday(&time,NULL);
+
+	while(list->next != NULL){
+		if((time.tv_sec - list->ID) > conf->linktimeout){//for the first member in list
+			list = list->next;
+			ptr = list;
+		}
+		if((time.tv_sec - ptr->next) > conf->linktimeout){			ptr->next = ptr->next->next;//deleting the next node
+		}
+		else{
+			ptr = ptr->next;
+		}
+	}
+}
 
 void* run_tap_thread(void* arg) {
 	int socket_fd = (int)arg;
