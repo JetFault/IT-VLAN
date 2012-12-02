@@ -16,8 +16,7 @@
 #include <sys/time.h>
 
 #include "tap.h"
-#include "socket_read_write.h"
-#include "server.h"
+#include "vlanpacket.h"
 #include "connect.h"
 #include "linkstate.h"
 
@@ -29,6 +28,35 @@ int tap_fd = -1;
 
 char* TAP_NAME;
 
+void delete_members() {
+	
+	struct timeval time;
+  struct linkstate* head = list;
+	struct linkstate* ptr = head;
+
+	gettimeofday(&time,NULL);
+
+	while(ptr != NULL){
+		if((time.tv_sec - ptr->ID) > conf->linktimeout){
+
+      if(ptr == head) { // Delete Head
+        head = ptr->next;
+        free(ptr);
+      } else {
+        
+      }
+
+			list = list->next;
+			ptr = list;
+		}
+		if((time.tv_sec - ptr->next->ID) > conf->linktimeout){			ptr->next = ptr->next->next;//deleting the next node
+		}
+		else{
+			ptr = ptr->next;
+		}
+	}
+}
+
 void poll_membership_list(){
 	
 	for(;;){
@@ -38,25 +66,6 @@ void poll_membership_list(){
 	}
 }
 
-void delete_members(){
-	
-	struct timeval time;
-	struct linkstate* ptr = list;
-
-	gettimeofday(&time,NULL);
-
-	while(list->next != NULL){
-		if((time.tv_sec - list->ID) > conf->linktimeout){//for the first member in list
-			list = list->next;
-			ptr = list;
-		}
-		if((time.tv_sec - ptr->next) > conf->linktimeout){			ptr->next = ptr->next->next;//deleting the next node
-		}
-		else{
-			ptr = ptr->next;
-		}
-	}
-}
 
 void* run_tap_thread(void* arg) {
 	int socket_fd = (int)arg;

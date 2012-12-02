@@ -13,7 +13,7 @@
 struct proxy_addr {
   uint32_t ip;
   uint16_t port;
-  char     mac_addr[48];
+  char     mac_addr[6]; //48 bits, 6 bytes
 };
 
 struct linkstate {
