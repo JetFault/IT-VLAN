@@ -101,8 +101,9 @@ uint16_t deserialize(char *buffer, void* packet_struct) {
     linkstate_pack->source.ip = source_ip;
     linkstate_pack->source.port = source_port;
     memcpy(linkstate_pack->source.mac_addr, mac_addr, 6);
-
-    for(int i = 0; i < number_neighbors; i++) {
+		
+		int i;
+    for(i = 0; i < number_neighbors; i++) {
       struct linkstate* ls_node = malloc(sizeof(struct linkstate));
 
       /* Get local address */
