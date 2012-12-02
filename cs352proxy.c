@@ -20,6 +20,8 @@
 #include "connect.h"
 #include "linkstate.h"
 
+#define DATAGRAM_SIZE 2048
+
 struct config* conf;
 struct linkstate* list;
 int server = 0;
@@ -91,10 +93,20 @@ void* run_tap_thread(void* arg) {
 	{
 		data_size = socket_read(tap_fd, buff_tap_datagram, DATAGRAM_SIZE);
 
+
     if(data_size == 0) {
       continue;
     }
 
+		struct data_packet* packgram = malloc(sizeof(struct data_packet));
+		packgram->packet_type = 0xABCD;
+		packgram->pack_length = data_size;
+		packgram->datagram = buff_tap_datagram;
+
+		serialize(packgram->packet_type,packgram,buff_tap_diagram);
+
+		
+		
 		h_type = htons(0xABCD);
 		h_size = htons(data_size);
 
@@ -106,18 +118,35 @@ void* run_tap_thread(void* arg) {
 
 void* run_accept_thread(void* connection_fd) {
   int remote_fd = (int) connection_fd;
+	char* buff_datagram = malloc(sizeof(char)* DATAGRAM_SIZE);
+	unsigned short int data_size;
 
   /* Wait for single record link state packet*/
 
   /* Read from remote */
-
+	data_size = socket_read(remote_fd, buff_datagram, DATAGRAM_SIZE);
+	
   /* Deserialize packet and check if Linkstate & 1 record only */
+	void * packet;
+	uint16_t packet_type = deserialize(buff_datagram, packet);
+	if( packet_type == UINT16_C(PACKET_TYPE_LINKSTATE)) {
     /* Add client to Membership list */
-    
-    /* Send Link State packet with RTT of 1 and current time to now */
 
-  /* If not close connection */
-  close(remote_fd);
+    /* Send Link State packet with RTT of 1 and current time to now */
+		struct linkstate_packet* = malloc(sizeof(struct linkstate_packet));
+		struct proxy_addr* local = malloc(sizeof(struct proxy_addr));
+		struct proxyaddr* remote = malloc(sizeof(struct proxy_addr));
+		linkstate_packet->avg_RTT = 1;
+		int time_now = ;
+		linkstate_packet->ID = time_now;
+
+
+		
+	} else {
+		/* If not close connection */
+		close(remote_fd);
+		return;
+	}
 
   /* Keep this connection alive */
   while(1) {
@@ -283,13 +312,13 @@ int main(int argc, char** argv) {
 		return -1;
 	}*/
 
-	pthread_create(&tcp_thread, NULL, run_tcp_thread, (void *)tcp_fd);
+	pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
 
 	if(conf->tap != NULL){
 		TAP_NAME = conf->tap;
 		pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
 	}
-	pthread_create(&poll_thread, NULL, poll_membership_list); 
+	pthread_create(&poll_thread, NULL, poll_membership_list,); 
 
   (void) pthread_join(tcp_thread, NULL);
   if(conf->tap !=NULL){
