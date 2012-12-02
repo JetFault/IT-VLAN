@@ -241,7 +241,7 @@ void* run_tcp_thread(void* socket_arg) {
  * Create threads for the tap device and for the socket.
  */
 int main(int argc, char** argv) {
-	pthread_t tcp_thread, tap_thread;
+	pthread_t tcp_thread, tap_thread, poll_thread;
 
 	if(argc == 2)
 		struct peerlist* list = parse_file(argv[1], conf);
@@ -285,11 +285,13 @@ int main(int argc, char** argv) {
 		TAP_NAME = config->tap;
 		pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
 	}
+	pthread_create(&poll_thread, NULL, poll_membership_list); 
 
   (void) pthread_join(tcp_thread, NULL);
   if(config->tap !=NULL){
   	(void) pthread_join(tap_thread, NULL);
-  } 
+  }
+  pthread_join(poll_thread,NULL);
 
 	return 0;
 }
