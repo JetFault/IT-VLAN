@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <arpa/inet.h>
 
 #include "vlanpacket.h"
 
@@ -97,20 +98,54 @@ uint16_t deserialize(char *buffer, void* packet_struct) {
     uint16_t source_port = (uint16_t)* ( ((uint32_t*)fields) +1);
     char* mac_addr = (char*) (fields + 6);
 
-    /* Source addres */
+    /* Source address */
     linkstate_pack->source.ip = source_ip;
     linkstate_pack->source.port = source_port;
     memcpy(linkstate_pack->source.mac_addr, mac_addr, 6);
+
+    linkstate_pack->linkstate_head = NULL;
+
+    char* current_ptr = (char *) (fields + sizeof(struct proxy_addr));
+    uint16_t ip, port;
 
     for(int i = 0; i < number_neighbors; i++) {
       struct linkstate* ls_node = malloc(sizeof(struct linkstate));
 
       /* Get local address */
+      ip = *((uint32_t*)current_ptr);
+      port = (uint16_t)* ( ((uint32_t*)current_ptr) +1);
+      mac_addr = (char*) (current_ptr + 6);
+
+      ls_node->local.ip = ip;
+      ls_node->local.port = port;
+      memcpy(ls_node->local.mac_addr, mac_addr, 6);
+
+      current_ptr = current_ptr + sizeof(struct proxy_addr);
+
 
       /* Get remote address */
+      ip = *((uint32_t*)current_ptr);
+      port = (uint16_t)* ( ((uint32_t*)current_ptr) +1);
+      mac_addr = (char*) (current_ptr + 6);
+
+      ls_node->remote.ip = ip;
+      ls_node->remote.port = port;
+      memcpy(ls_node->remote.mac_addr, mac_addr, 6);
+
+      current_ptr = current_ptr + sizeof(struct proxy_addr);
+
 
       /* Get RTT, ID */
+      
+      uint32_t rtt = *((uint32_t*)current_ptr);
+      current_ptr = current_ptr + sizeof(uint32_t);
+      uint64_t ID = *((uint64_t*) current_ptr);
+      current_ptr = current_ptr + sizeof(uint64_t);
 
+
+      /* Attach Linkstate to front of list */
+      ls_node->next = linkstate_pack->linkstate_head;
+      linkstate_pack->linkstate_head = ls_node; 
     }
 
   }
@@ -130,22 +165,153 @@ uint16_t deserialize(char *buffer, void* packet_struct) {
  * return: size of buffer
  */
 size_t serialize(uint16_t packet_type, void* packet, char* buffer) {
+  
+  size_t header_size = sizeof(uint16_t) * 2; //data & length
+  buffer = malloc(header_size + ((struct data_packet *)packet)->packet_length);
+
+  /* Bitwise magic to set packet fields */
+  char* curr_ptr = buffer;
+  uint16_t* pack_type = (uint16_t*) curr_ptr;
+  *pack_type = packet_type;
+  uint16_t* pack_len = (uint16_t*) (curr_ptr + sizeof(uint16_t));
+  *pack_len = ((struct data_packet *)packet)->packet_length;
+  curr_ptr = curr_ptr + (sizeof(uint16_t)*2);
 
 
-  switch(packet_type) {
-    case PACKET_TYPE_DATA:
-      break;
-    case PACKET_TYPE_LEAVE:
-      break;
-    case PACKET_TYPE_QUIT:
-      break;
-    case PACKET_TYPE_LINKSTATE:
-      break;
-    default:
-      fprintf(stderr, "Wrong packet type: %u", packet_type);
-      return 0;
+  if(packet_type == UINT16_C(PACKET_TYPE_DATA)) {
+    struct data_packet* pack = (struct data_packet *) packet;
+
+    data_pack->packet_type = packet_type;
+    data_pack->packet_length = pack_length;
+
+    data_pack->datagram = (char*)( ((uint16_t*)buffer) +2);
+
+    packet_struct = data_pack;
+  } 
+  else if(packet_type == PACKET_TYPE_LEAVE) {
+    struct leave_packet* leave_pack = malloc(sizeof(struct leave_packet));
+
+    leave_pack->packet_type = packet_type;
+    leave_pack->packet_length = pack_length;
+
+    if(pack_length != 20) {
+      fprintf(stderr, "Wrong packet length of %u", pack_length);
+    }
+
+    char* fields = (char*)( ((uint16_t*)buffer) +2);
+    
+    uint32_t local_ip = *( ((uint32_t*)fields));
+    uint16_t local_port = (uint16_t)* ( ((uint32_t*)fields) +1);
+    char* mac_addr = (char*) (fields + 6);
+
+    leave_pack->local.ip = local_ip;
+    leave_pack->local.port = local_port;
+    memcpy(leave_pack->local.mac_addr, mac_addr, 6);
+
+    leave_pack->ID = (uint64_t)* (fields + sizeof(struct proxy_addr));
+
+    free(buffer);
+
+    packet_struct = leave_pack;
   }
+  else if(packet_type == PACKET_TYPE_QUIT) {
+    struct quit_packet* quit_pack = malloc(sizeof(struct quit_packet));
 
+    quit_pack->packet_type = packet_type;
+    quit_pack->packet_length = pack_length;
+
+    if(pack_length != 20) {
+      fprintf(stderr, "Wrong packet length of %u", pack_length);
+    }
+
+    char* fields = (char*)(((uint16_t*)buffer) +2);
+    
+    uint32_t local_ip = *( ((uint32_t*)fields));
+    uint16_t local_port = (uint16_t)* ( ((uint32_t*)fields) +1);
+    char* mac_addr = (char*) (fields + 6);
+
+    quit_pack->local.ip = local_ip;
+    quit_pack->local.port = local_port;
+    memcpy(quit_pack->local.mac_addr, mac_addr, 6);
+
+    quit_pack->ID = (uint64_t)* (fields + sizeof(struct proxy_addr));
+
+    free(buffer);
+
+    packet_struct = quit_pack;
+
+  }
+  else if(packet_type == PACKET_TYPE_LINKSTATE) {
+    struct linkstate_packet* linkstate_pack = malloc(sizeof(struct linkstate_packet));
+
+    linkstate_pack->packet_type = packet_type;
+    linkstate_pack->packet_length = pack_length;
+
+    uint16_t number_neighbors = (uint16_t)* ( ((uint16_t*)buffer) +2);
+
+    linkstate_pack->num_neighbors = number_neighbors;
+
+    char* fields = (char*)(((uint16_t*)buffer) +3);
+  
+    uint32_t source_ip = *( ((uint32_t*)fields));
+    uint16_t source_port = (uint16_t)* ( ((uint32_t*)fields) +1);
+    char* mac_addr = (char*) (fields + 6);
+
+    /* Source address */
+    linkstate_pack->source.ip = source_ip;
+    linkstate_pack->source.port = source_port;
+    memcpy(linkstate_pack->source.mac_addr, mac_addr, 6);
+
+    linkstate_pack->linkstate_head = NULL;
+
+    char* current_ptr = (char *) (fields + sizeof(struct proxy_addr));
+    uint16_t ip, port;
+
+    for(int i = 0; i < number_neighbors; i++) {
+      struct linkstate* ls_node = malloc(sizeof(struct linkstate));
+
+      /* Get local address */
+      ip = *((uint32_t*)current_ptr);
+      port = (uint16_t)* ( ((uint32_t*)current_ptr) +1);
+      mac_addr = (char*) (current_ptr + 6);
+
+      ls_node->local.ip = ip;
+      ls_node->local.port = port;
+      memcpy(ls_node->local.mac_addr, mac_addr, 6);
+
+      current_ptr = current_ptr + sizeof(struct proxy_addr);
+
+
+      /* Get remote address */
+      ip = *((uint32_t*)current_ptr);
+      port = (uint16_t)* ( ((uint32_t*)current_ptr) +1);
+      mac_addr = (char*) (current_ptr + 6);
+
+      ls_node->remote.ip = ip;
+      ls_node->remote.port = port;
+      memcpy(ls_node->remote.mac_addr, mac_addr, 6);
+
+      current_ptr = current_ptr + sizeof(struct proxy_addr);
+
+
+      /* Get RTT, ID */
+      
+      uint32_t rtt = *((uint32_t*)current_ptr);
+      current_ptr = current_ptr + sizeof(uint32_t);
+      uint64_t ID = *((uint64_t*) current_ptr);
+      current_ptr = current_ptr + sizeof(uint64_t);
+
+
+      /* Attach Linkstate to front of list */
+      ls_node->next = linkstate_pack->linkstate_head;
+      linkstate_pack->linkstate_head = ls_node; 
+    }
+
+  }
+  else {
+    fprintf(stderr, "Wrong packet type: %u", packet_type);
+    return -1;
+  }
 }
 
 ssize_t read_wrapper(int socket_fd, char* buffer, size_t length) {

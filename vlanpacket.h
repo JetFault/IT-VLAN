@@ -19,7 +19,7 @@ struct proxy_addr {
 struct linkstate {
   struct proxy_addr local;
   struct proxy_addr remote;
-  int32_t avg_RTT;
+  uint32_t avg_RTT;
   uint64_t ID;
   struct linkstate *next;
 };
