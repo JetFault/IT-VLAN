@@ -1,6 +1,9 @@
 #ifndef _VLANPACKET_H_
 #define _VLANPACKET_H_
 
+#include <stdint.h>
+#include <sys/types.h>
+
 #define PACKET_TYPE_DATA 0xABCD
 #define PACKET_TYPE_LEAVE 0xAB01
 #define PACKET_TYPE_QUIT 0xAB12
@@ -13,27 +16,6 @@ struct proxy_addr {
   char     mac_addr[48];
 };
 
-struct data_packet {
-  uint16_t packet_type = PACKET_TYPE_DATA;
-  uint16_t packet_length;
-  char* datagram;
-};
-
-
-struct leave_packet {
-  uint16_t packet_type = PACKET_TYPE_LEAVE;
-  uint16_t packet_length = 20;
-  struct proxy_addr local;
-  uint64_t ID;
-};
-
-struct quit_packet {
-  uint16_t packet_type = PACKET_TYPE_QUIT;
-  uint16_t packet_length = 20;
-  struct proxy_addr local;
-  uint64_t ID;
-};
-
 struct linkstate {
   struct proxy_addr local;
   struct proxy_addr remote;
@@ -42,8 +24,28 @@ struct linkstate {
   struct linkstate *next;
 };
 
+struct data_packet {
+  uint16_t packet_type;
+  uint16_t packet_length;
+  char* datagram;
+};
+
+struct leave_packet {
+  uint16_t packet_type;
+  uint16_t packet_length; //Should be 20
+  struct proxy_addr local;
+  uint64_t ID;
+};
+
+struct quit_packet {
+  uint16_t packet_type;
+  uint16_t packet_length; //Should be 20
+  struct proxy_addr local;
+  uint64_t ID;
+};
+
 struct linkstate_packet {
-  uint16_t packet_type = PACKET_TYPE_LINKSTATE;
+  uint16_t packet_type;
   uint16_t packet_length;
   uint16_t num_neighbors;
   struct proxy_addr source;
@@ -64,7 +66,5 @@ uint16_t deserialize(char *buffer, void* packet_struct);
  * return: size of buffer
  */
 size_t serialize(uint16_t packet_type, void* packet, char* buffer);
-
-
 
 #endif
