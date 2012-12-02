@@ -18,12 +18,8 @@
 #include "tap.h"
 #include "socket_read_write.h"
 #include "server.h"
-#include "client.h"
+#include "connect.h"
 #include "linkstate.h"
-
-#define HEADER_SIZE_SIZE 2
-#define HEADER_TYPE_SIZE 2
-#define DATAGRAM_SIZE 2048 - HEADER_SIZE_SIZE - HEADER_TYPE_SIZE
 
 struct config* conf;
 struct linkstate* list;
@@ -96,6 +92,77 @@ void* run_tap_thread(void* arg) {
 		socket_write(socket_fd, buff_tap_datagram, data_size);
 	}
 }
+
+void* run_accept_thread(void* connection_fd) {
+  int remote_fd = (int) connection_fd;
+
+  /* Wait for single record link state packet*/
+
+  /* Read from remote */
+
+  /* Deserialize packet and check if Linkstate & 1 record only */
+    /* Add client to Membership list */
+    
+    /* Send Link State packet with RTT of 1 and current time to now */
+
+  /* If not close connection */
+  close(remote_fd);
+
+  /* Keep this connection alive */
+  while(1) {
+
+    /* Read from remote */
+    /* Deserialize packet */
+      /* Part 2: Data packets get sent to local tap */
+
+  }
+
+};
+
+void* start_tcp_listener(void* socket_arg) {
+	int socket_fd = (int)socket_arg;
+  int listen_port = config->listenport;
+
+  int connection_fd;
+
+  struct sockaddr_in socket_info;
+
+  /* Create the socket info */
+  if(get_socket_info(NULL, listen_port, &socket_info)) {
+    fprintf(stderr, "Failure getting socket info");
+    exit(EXIT_FAILURE);
+  }
+
+  /* Bind */
+  if(bind(socket_fd, (struct sockaddr*)&socket_info, sizeof(socket_info))) {
+    fprintf(stderr, "Binding failed.");
+    close(socket_fd);
+    exit(EXIT_FAILURE);
+  }
+
+  /* Listen */
+  errno = 0;
+  if(listen(socket_fd, 10) == -1) {
+    fprintf(stderr, "Listening on device Failed. Error: %s\n", strerror(errno));
+    close(socket_fd);
+    exit(EXIT_FAILURE);
+  }
+
+  /* Accept connections, and spawn new threads for each connection */
+  while(1) {
+    pthread_t child;
+
+    /* Accept */
+    if((connection_fd = accept(socket_fd, NULL, NULL)) <= 0) {
+      fprintf(stderr, "Accept failed. Error Code: %d", connection_fd);
+      close(socket_fd);
+      exit(EXIT_FAILURE);
+    }
+
+    pthread_create(&child, NULL, run_accept_thread, (void*) connection_fd);
+  };
+
+};
 
 void* run_tcp_thread(void* socket_arg) {
 	unsigned short int h_type = 0;
