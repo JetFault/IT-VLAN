@@ -3,20 +3,17 @@ CCFLAGS = -g
 
 all: cs352proxy 
 
-cs352proxy: server.o client.o tap.o socket_read_write.o cs352proxy.c
-		$(CC) $(CCFLAGS) -o cs352proxy -lpthread cs352proxy.c tap.o client.o server.o socket_read_write.o
+cs352proxy: connect.o tap.o vlanpacket.o cs352proxy.c
+		$(CC) $(CCFLAGS) -o cs352proxy -lpthread cs352proxy.c tap.o connect.o vlanpacket.o
 
-server.o: server.c
-	$(CC) $(CCFLAGS) -c server.c
-
-client.o: client.c
-	$(CC) $(CCFLAGS) -c client.c
+connect.o: connect.c
+	$(CC) $(CCFLAGS) -c connect.c
 
 tap.o: tap.c
 	$(CC) $(CCFLAGS) -c tap.c
 
-socket_read_write.o: socket_read_write.c
-	$(CC) $(CCFLAGS) -c socket_read_write.c
+vlanpacket.o: vlanpacket.c
+	$(CC) $(CCFLAGS) -c vlanpacket.c
 
 
 clean:

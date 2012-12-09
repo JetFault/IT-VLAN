@@ -16,33 +16,75 @@
 #include <sys/time.h>
 
 #include "tap.h"
-#include "socket_read_write.h"
-#include "server.h"
-#include "client.h"
+#include "vlanpacket.h"
+#include "connect.h"
+#include "linkstate.h"
 
-#define HEADER_SIZE_SIZE 2
-#define HEADER_TYPE_SIZE 2
-#define DATAGRAM_SIZE 2048 - HEADER_SIZE_SIZE - HEADER_TYPE_SIZE
+#define DATAGRAM_SIZE 2048
 
+struct config* conf;
+struct linkstate* list;
 int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
 
 char* TAP_NAME;
 
+void delete_members() {
+
+	struct timeval time;
+  struct linkstate* ptr = list;
+	struct linkstate* tmp;
+
+	gettimeofday(&time,NULL);
+
+	while(ptr != NULL)	{
+		if((time.tv_sec - ptr->ID) > conf->linktimeout){
+
+      if(ptr == list) { // Delete Head
+        struct linkstate* t = ptr;
+				list = list->next;
+				ptr = list;
+        free(t);
+
+      } else {
+				tmp->next = ptr->next;
+				free(ptr);
+				ptr = tmp->next;
+      }
+		}
+		else{
+			tmp = ptr;
+			ptr = ptr->next;
+		}
+
+	}
+}
+
+void poll_membership_list(){
+	
+	for(;;){
+	/*send packets */
+		delete_members();
+		sleep(conf->linkperiod);
+	}
+}
+
+
 void* run_tap_thread(void* arg) {
-	int tap_fd = (int)arg;
+	int socket_fd = (int)arg;
 	char *if_name = "tap0";
 
-	int socket_fd = tcp_fd;
+	//int socket_fd = tcp_fd;
 
 	unsigned short int data_size = 0;
 
 	char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
 	unsigned short int h_type = 0;
 	unsigned short int h_size = 0;
+	char* local_mac = malloc(sizeof(char)*6);
 
-	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PI)) < 0 ) {
+	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PIi,local_mac)) < 0 ) {
 		perror("Opening tap interface failed! \n");
 		exit(1);
 	}
@@ -51,6 +93,20 @@ void* run_tap_thread(void* arg) {
 	{
 		data_size = socket_read(tap_fd, buff_tap_datagram, DATAGRAM_SIZE);
 
+
+    if(data_size == 0) {
+      continue;
+    }
+
+		struct data_packet* packgram = malloc(sizeof(struct data_packet));
+		packgram->packet_type = 0xABCD;
+		packgram->pack_length = data_size;
+		packgram->datagram = buff_tap_datagram;
+
+		serialize(packgram->packet_type,packgram,buff_tap_diagram);
+
+		
+		
 		h_type = htons(0xABCD);
 		h_size = htons(data_size);
 
@@ -60,6 +116,94 @@ void* run_tap_thread(void* arg) {
 	}
 }
 
+void* run_accept_thread(void* connection_fd) {
+  int remote_fd = (int) connection_fd;
+	char* buff_datagram = malloc(sizeof(char)* DATAGRAM_SIZE);
+	unsigned short int data_size;
+
+  /* Wait for single record link state packet*/
+
+  /* Read from remote */
+	data_size = socket_read(remote_fd, buff_datagram, DATAGRAM_SIZE);
+	
+  /* Deserialize packet and check if Linkstate & 1 record only */
+	void * packet;
+	uint16_t packet_type = deserialize(buff_datagram, packet);
+	if( packet_type == UINT16_C(PACKET_TYPE_LINKSTATE)) {
+    /* Add client to Membership list */
+
+    /* Send Link State packet with RTT of 1 and current time to now */
+		struct linkstate_packet* = malloc(sizeof(struct linkstate_packet));
+		struct proxy_addr* local = malloc(sizeof(struct proxy_addr));
+		struct proxyaddr* remote = malloc(sizeof(struct proxy_addr));
+		linkstate_packet->avg_RTT = 1;
+		int time_now = ;
+		linkstate_packet->ID = time_now;
+
+
+		
+	} else {
+		/* If not close connection */
+		close(remote_fd);
+		return;
+	}
+
+  /* Keep this connection alive */
+  while(1) {
+
+    /* Read from remote */
+    /* Deserialize packet */
+      /* Part 2: Data packets get sent to local tap */
+
+  }
+
+};
+
+void* start_tcp_listener(void* socket_arg) {
+	int socket_fd = (int)socket_arg;
+  int listen_port = conf->listenport;
+
+  int connection_fd;
+
+  struct sockaddr_in socket_info;
+
+  /* Create the socket info */
+  if(get_socket_info(NULL, listen_port, &socket_info)) {
+    fprintf(stderr, "Failure getting socket info");
+    exit(EXIT_FAILURE);
+  }
+
+  /* Bind */
+  if(bind(socket_fd, (struct sockaddr*)&socket_info, sizeof(socket_info))) {
+    fprintf(stderr, "Binding failed.");
+    close(socket_fd);
+    exit(EXIT_FAILURE);
+  }
+
+  /* Listen */
+  errno = 0;
+  if(listen(socket_fd, 10) == -1) {
+    fprintf(stderr, "Listening on device Failed. Error: %s\n", strerror(errno));
+    close(socket_fd);
+    exit(EXIT_FAILURE);
+  }
+
+  /* Accept connections, and spawn new threads for each connection */
+  while(1) {
+    pthread_t child;
+
+    /* Accept */
+    if((connection_fd = accept(socket_fd, NULL, NULL)) <= 0) {
+      fprintf(stderr, "Accept failed. Error Code: %d", connection_fd);
+      close(socket_fd);
+      exit(EXIT_FAILURE);
+    }
+
+    pthread_create(&child, NULL, run_accept_thread, (void*) connection_fd);
+  };
+
+};
+
 void* run_tcp_thread(void* socket_arg) {
 	unsigned short int h_type = 0;
 	unsigned short int h_size = 0;
@@ -67,10 +211,6 @@ void* run_tcp_thread(void* socket_arg) {
 	char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
 
 	int socket_fd = (int)socket_arg;
-
-	//Start Tap Thread
-	pthread_t tap_thread;
-	pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
 
 	for(;;)
 	{
@@ -132,37 +272,59 @@ void* run_tcp_thread(void* socket_arg) {
  * Create threads for the tap device and for the socket.
  */
 int main(int argc, char** argv) {
-	pthread_t tcp_thread;
+	pthread_t tcp_thread, tap_thread, poll_thread;
 
-
-	TAP_NAME = malloc(strlen(argv[2]) + 1);
-	/* Server Mode */
-	if(argc == 3) {
-		char * tap_arg = argv[2];
-		TAP_NAME = malloc(strlen(tap_arg) + 1);
-		TAP_NAME = strcpy(TAP_NAME, tap_arg);
-		tcp_fd = server_connect(argv[1]);
-	} 
-	/* Client Mode */
-	else if(argc == 4) {
-		char * tap_arg = argv[3];
-		TAP_NAME = malloc(strlen(tap_arg) + 1);
-		TAP_NAME = strcpy(TAP_NAME, tap_arg);
-		tcp_fd = client_connect(argv[1], argv[2]);
-	} 
-	/* Wrong Arguments */
-	else {
-		perror("Usage: \
-				/tFor the 1st proxy (e.g. on machine X) \
-				/t/tcs352proxy <port> <local interface> \
-				/tFor the 2nd proxy (e.g. on machine Y) \
-				/t/tcs352proxy <remote host> <remote port> <local interface>");
-		return -1;
+	if(argc == 2){
+		struct peerlist* peers = parse_file(argv[1], conf);
+	}
+	else{
+		exit(EXIT_FAILURE);
 	}
 
-	pthread_create(&tcp_thread, NULL, run_tcp_thread, (void *)tcp_fd);
+	
+ /* if(argc == 3 || argc == 4) {*/
+    /* Server Mode */
+    /*if(argc == 3) {
+      char * tap_arg = argv[2];
+      TAP_NAME = malloc(strlen(tap_arg) + 1);
+      TAP_NAME = strcpy(TAP_NAME, tap_arg);
+      server = 1;
+      tcp_fd = server_connect(atoi(argv[1]));
+    } */
+    /* Client Mode */
+    /*
+    else if(argc == 4) {
+      char * tap_arg = argv[3];
+      TAP_NAME = malloc(strlen(tap_arg) + 1);
+      TAP_NAME = strcpy(TAP_NAME, tap_arg);
+      server = 0;
+      tcp_fd = client_connect(argv[1], atoi(argv[2]));
+    } 
+    int socket_fd = initialize_tcp();
+  }*/
+	/* Wrong Arguments */
+/*	else {
+		perror("Usage: \
+				\tFor the 1st proxy (e.g. on machine X) \
+				\t\tcs352proxy <port> <local interface> \
+				\tFor the 2nd proxy (e.g. on machine Y) \
+				\t\tcs352proxy <remote host> <remote port> <local interface>");
+		return -1;
+	}*/
+
+	pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
+
+	if(conf->tap != NULL){
+		TAP_NAME = conf->tap;
+		pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
+	}
+	pthread_create(&poll_thread, NULL, poll_membership_list,); 
 
   (void) pthread_join(tcp_thread, NULL);
+  if(conf->tap !=NULL){
+  	(void) pthread_join(tap_thread, NULL);
+  }
+  pthread_join(poll_thread,NULL);
 
 	return 0;
 }
