@@ -148,6 +148,36 @@ uint16_t deserialize(char *buffer, void** packet_struct) {
 
     *packet_struct = linkstate_pack;
   }
+  else if(packet_type == PACKET_TYPE_PROBEREQ) {
+    struct probereq_packet* pack = malloc(sizeof(struct probereq_packet));
+
+    pack->packet_type = packet_type;
+    pack->packet_length = pack_length;
+
+    if(pack_length != 8) {
+      fprintf(stderr, "Wrong packet length of %u", pack_length);
+      return 0;
+    }
+
+    pack->ID = *( (uint64_t*)curr_ptr);
+
+    *packet_struct = pack;
+  }
+  else if(packet_type == PACKET_TYPE_PROBERES) {
+    struct proberes_packet* pack = malloc(sizeof(struct proberes_packet));
+
+    pack->packet_type = packet_type;
+    pack->packet_length = pack_length;
+
+    if(pack_length != 8) {
+      fprintf(stderr, "Wrong packet length of %u", pack_length);
+      return 0;
+    }
+
+    pack->ID = *( (uint64_t*)curr_ptr);
+
+    *packet_struct = pack;
+  }
   else {
     fprintf(stderr, "Wrong packet type: %u\n", packet_type);
     return 0;
@@ -241,6 +271,22 @@ size_t serialize(uint16_t packet_type, void* packet, char** buffer) {
       ls_node = ls_node->next;
     }
 
+  }
+  else if(packet_type == PACKET_TYPE_PROBEREQ) {
+    struct probereq_packet* pack = (struct probereq_packet *) packet;
+
+    uint64_t* ID = (uint64_t*) curr_ptr;
+    *ID = pack->ID;
+
+    curr_ptr = curr_ptr + sizeof(uint64_t);
+  }
+  else if(packet_type == PACKET_TYPE_PROBERES) {
+    struct proberes_packet* pack = (struct proberes_packet *) packet;
+
+    uint64_t* ID = (uint64_t*) curr_ptr;
+    *ID = pack->ID;
+
+    curr_ptr = curr_ptr + sizeof(uint64_t);
   }
   else {
     fprintf(stderr, "Wrong packet type: %u\n", packet_type);

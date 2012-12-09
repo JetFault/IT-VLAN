@@ -8,6 +8,8 @@
 #define PACKET_TYPE_LEAVE 0xAB01
 #define PACKET_TYPE_QUIT 0xAB12
 #define PACKET_TYPE_LINKSTATE 0xABAC
+#define PACKET_TYPE_PROBEREQ 0xAB34
+#define PACKET_TYPE_PROBERES 0xAB35
 
 
 struct proxy_addr {
@@ -51,6 +53,19 @@ struct linkstate_packet {
   struct proxy_addr source;
   struct linkstate* linkstate_head;
 };
+
+struct probereq_packet {
+  uint16_t packet_type;
+  uint16_t packet_length; //Should be 8
+  uint64_t ID;
+};
+
+struct proberes_packet {
+  uint16_t packet_type;
+  uint16_t packet_length; //Should be 8
+  uint64_t ID; // Echo of the corresponding probe
+};
+
 
 /* Deserialize a buffer sent over the network to a packet struct
  * param buffer: the buffer to deserialize
