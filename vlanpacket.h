@@ -57,7 +57,7 @@ struct linkstate_packet {
  * param packet_struct: the memory location where to allocate packet
  * return: the packet type, PACKET_TYPE_*
  */
-uint16_t deserialize(char *buffer, void* packet_struct);
+uint16_t deserialize(char *buffer, void** packet_struct);
 
 /* Serlialize a packet struct into a char* buffer to send over network
  * param packet_type: the packet_type, defined as PACKET_TYPE_*
@@ -65,6 +65,6 @@ uint16_t deserialize(char *buffer, void* packet_struct);
  * param buffer: location to malloc new char* buffer
  * return: size of buffer
  */
-size_t serialize(uint16_t packet_type, void* packet, char* buffer);
+size_t serialize(uint16_t packet_type, void* packet, char** buffer);
 
 #endif
