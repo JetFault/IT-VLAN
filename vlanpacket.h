@@ -11,6 +11,18 @@
 #define PACKET_TYPE_PROBEREQ 0xAB34
 #define PACKET_TYPE_PROBERES 0xAB35
 
+/* Extra Credit Packet Types 
+ 
+ Proxy Public Key 0xAB21
+ Signed Data 0xABC1
+ Proxy Secret key 0xAB22
+ Encrypted Data 0xABC2
+ Encrypted Link State 0XABAB
+ Signed link-state 0XABAD
+ Bandwidth Probe Request 0xAB45
+ Bandwidth Response 0xAB46
+
+ */
 
 struct proxy_addr {
   uint32_t ip;
