@@ -30,6 +30,36 @@
     + The membership list should be periodically scanned to remove stale entries.
       - When no link state record for a proxy has been received for linkTimeout seconds.
 
+  - Managing the Link-State Graph:
+    + Directed, weighted graph representing the state of the network.
+    + A link-state record is an edge. 
+    + Nodes are identified using the layer-2 MAC address, either through the tapX or eth0 interface.
+    + The weight of each edge is the Round-Trip-Time (RTT), thus lower valued edges are better.
+    + The direction of each edge is obtained by the local/remote part of the link-state record
+      - The edge begins at the local side and ends at the remote side. 
+    + In order to build and maintain the graph, each proxy must perform the following: 
+      - Create link state records from socket connections. 
+        + That is, for each connected peer,
+          - Every LinkPeriod seconds the proxy creates a new link state record.
+          - The RTT field is created from measurements of RTT packets.
+            + If the proxy does not have the RTT working, it should set all the RTT to a value of 1. 
+          - Forward locally generated and records from other proxies to all your neighbors.
+          - If you maintain the graph as an edge set, send all the valid edges in the link state packet. 
+          - Remove duplicates and time-out link state records. 
+            + This relies on the ID field in the record/edge. 
+            + The proxy can assume the ID field is monotonically increasing.
+            + The proxy must generate records that are increasing as well.
+            + When your proxy starts, it can assume zero as a base ID value.
+            + If a received record/edge has a lower value, it is discarded.
+            + When a new record/edge is received, it is time-stamped.
+            + Records that are older than LinkTimeout seconds are also removed from the graph.
+            + Records that have a lower ID than expired records with higher IDs are also discarded.
+            + Thus, the proxy must retain at least 1 expired edge in order to remember which edges it must discard.
+      + In addition, once it has the link-state graph, each proxy must:
+        - Build a forwarding table for packets from the graph.
+          + It maps a destination MAC address coming from the tap device to a socket.
+          + You should run a shortest path algorithm on the graph to build the forwarding table. 
+
 -Jerry -------------------------------------------------------------------------------------------------------
   - Add currently open sockets to linkstate list
   - Route packets to appropriate end host
@@ -62,6 +92,7 @@
       - Check for duplicates in link state list using the MAC and ID fields as unique identifiers
       - Update the list accordingly
     + Every 10 seconds a proxy will send its' link state records to the neighboring connected proxies. 
+  - Packet Type/Length should be in Network Endian
           
 
   - Taking down the whole VLAN
@@ -69,7 +100,6 @@
       - Forward it to all connected peers
       - Close all the sockets
       - Then exit
-
 
 
 
