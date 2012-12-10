@@ -1,0 +1,85 @@
+-Karina  
+  - If no TAP device specified in config, use eth0 mac addr. Read it from /sys/class/net/eth0/address
+  - Membership List
+  - Forwarding Table
+  - Routing Graph
+  - Routing
+    + The membership list and link state list will be used to generate a directed graph.
+    + You will use the graph to generate a forwarding table for the given proxy.
+    + You should use shortest path routing where the link cost is the RTT in milliseconds. 
+  - Network Measurement and Link Cost.
+    + RTT will be measured every 1 second by:
+      - Measuring the time between a sent probe request packet and probe response packet.
+      - The RTT will be included in the link state between the peers. 
+      - The RTT is computed by:
+        + Taking a timestamp
+        + Sending probe request 
+        + Waiting for the probe response
+        + Recording the difference in time
+  - Maintaining the Membership list.
+    + Every linkPeriod seconds a proxy will send a link state packet, which contains all the
+        link-state records it owns, to all connected proxies. 
+      - These linkstate records are flooded throughout the system.
+    + If a proxy receives a leave packet
+      - If it has not seen this ID yet
+        + It should:
+          - Send a leave message to all the connected proxies
+          - Close all the sockets for that peer
+          - Then exit. (This means nothing to me...?)
+      - Proxies receiving a leave packet will remove that particular proxy from the membership list. 
+    + The membership list should be periodically scanned to remove stale entries.
+      - When no link state record for a proxy has been received for linkTimeout seconds.
+
+-Jerry -------------------------------------------------------------------------------------------------------
+  - Add currently open sockets to linkstate list
+  - Route packets to appropriate end host
+  - ID should be current time in milliseconds
+  - Create a Client and Server socket
+  - Server
+    + Accept a connection
+      - Wait for for a 1 record linkstate packet
+      - If the first packet is not a single record link state packet,
+        + the proxy will close the connection.
+      - If it is, it adds the client in the to the membership list.
+      - The server then generates it's own link state packet and sends over same socket
+      - The RTT should be set to 1 and the ID set to the current time.
+  - Client
+    + Connect to all your peers
+  - Actions on Linkstate Packet Arrival
+    + For each record in the packet,
+      - Receiver checks the local and remote MAC addresses against it’s membership list.
+        + If either is not on this list
+          - the receiving proxy tries to connect to the reported IP address in the record.
+            + If this connect() call  fails, the two proxiesi remain disconnected. 
+        + If they are in your membership list
+          - Check if ID is > old ID.
+            + If yes, replace old linkstate with this newer one
+            + Else, discard
+  - Flooding Link State Records. 
+    + Each link state record is unique, but whole sets of records will be transferred between 
+        pairs of proxies in bulk.
+    + Upon receiving a neighbor's link state records,
+      - Check for duplicates in link state list using the MAC and ID fields as unique identifiers
+      - Update the list accordingly
+    + Every 10 seconds a proxy will send its' link state records to the neighboring connected proxies. 
+          
+
+  - Taking down the whole VLAN
+    + If a node receives a quit packet.
+      - Forward it to all connected peers
+      - Close all the sockets
+      - Then exit
+
+
+
+
+- Flow Logic -------------------------------------------------------------------------------------------------
+  1. Waiting for connecting proxies on the listening TCP port. 
+  2. Reading packets from the local interface and forwarding them to the correct remote proxy via TCP. 
+  3. Reading packets from the TCP socket of a connected proxy and forwarding them to the local interface,
+      or routing them to the correct peer proxy's TCP socket (for part 3).
+  4. Periodically: 
+    1. Checking for expired membership list and link state entries.
+    2. Sending link state packets.
+    3. Sending probe packets to measuring the link (for part 3).
+    4. Updating the routing graph (for part 3).
