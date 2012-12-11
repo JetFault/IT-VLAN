@@ -43,26 +43,51 @@ int deserialize_proxy_addr(char* data_start, struct proxy_addr * proxy_address) 
 }
 
 
+/* Read from the socket fd to get a packet
+ * param socket_fd: Socket fd to read from
+ * param packet_struct: Address of where to store packet_struct
+ * return: the packet type, 0 if error
+ */
+uint16_t read_packet(int socket_fd, void** packet_struct) {
+  char* header = malloc(sizeof(struct header));
+  if(socket_read(socket_fd, &header, sizeof(struct header)) != sizeof(struct header)) {
+    fprintf(stderr, "Incorrect header structure\n");
+    return 0;
+  }
+  
+  /* Bitwise magic to get packet fields */
+  uint16_t pack_type = *((uint16_t*)header);
+  uint16_t pack_length = *( ((uint16_t*)header) + 1 );
+
+  struct header head = { .packet_type = pack_type, .packet_length = pack_length };
+
+  /* Read from socket to get the datagram/fields */
+  char* datagram = malloc(pack_length);
+  if(socket_read(socket_fd, &datagram, pack_length) != pack_length) {
+    fprintf(stderr, "Incorrect packet datagram structure\n");
+    return 0;
+  }
+
+  return deserialize(&head, datagram, packet_struct);
+}
+
+
 /* Deserialize a buffer sent over the network to a packet struct
  * param buffer: the buffer to deserialize
  * param packet_struct: the memory location where to allocate packet
- * return: the packet type, PACKET_TYPE_*
+ * return: the packet type, PACKET_TYPE_*. 0 if error/wrong packet type
  */
-uint16_t deserialize(char *buffer, void** packet_struct) {
+uint16_t deserialize(struct header* head, char *buffer, void** packet_struct) {
 
   size_t num_bytes;
 
-  /* Bitwise magic to get packet fields */
-  uint16_t packet_type = *((uint16_t*)buffer);
-  uint16_t pack_length = *( ((uint16_t*)buffer) +1 );
+  char * curr_ptr = buffer;
 
-  char * curr_ptr = buffer + (sizeof(uint16_t) * 2);
+  uint16_t packet_type = head->packet_type;
+  uint16_t pack_length = head->packet_length;
 
-  if(packet_type == UINT16_C(PACKET_TYPE_DATA)) {
+  if(packet_type == PACKET_TYPE_DATA) {
     struct data_packet* data_pack = malloc(sizeof(struct data_packet));
-
-    data_pack->packet_type = packet_type;
-    data_pack->packet_length = pack_length;
 
     data_pack->datagram = malloc(pack_length);
 
@@ -72,9 +97,6 @@ uint16_t deserialize(char *buffer, void** packet_struct) {
   } 
   else if(packet_type == PACKET_TYPE_LEAVE) {
     struct leave_packet* leave_pack = malloc(sizeof(struct leave_packet));
-
-    leave_pack->packet_type = packet_type;
-    leave_pack->packet_length = pack_length;
 
     if(pack_length != 20) {
       fprintf(stderr, "Wrong packet length of %u", pack_length);
@@ -91,9 +113,6 @@ uint16_t deserialize(char *buffer, void** packet_struct) {
   else if(packet_type == PACKET_TYPE_QUIT) {
     struct quit_packet* quit_pack = malloc(sizeof(struct quit_packet));
 
-    quit_pack->packet_type = packet_type;
-    quit_pack->packet_length = pack_length;
-
     if(pack_length != 20) {
       fprintf(stderr, "Wrong packet length of %u", pack_length);
       return 0;
@@ -108,9 +127,6 @@ uint16_t deserialize(char *buffer, void** packet_struct) {
   }
   else if(packet_type == PACKET_TYPE_LINKSTATE) {
     struct linkstate_packet* linkstate_pack = malloc(sizeof(struct linkstate_packet));
-
-    linkstate_pack->packet_type = packet_type;
-    linkstate_pack->packet_length = pack_length;
 
     /* Number of Neighbors */
     uint16_t number_neighbors = (uint16_t) *curr_ptr;
@@ -151,9 +167,6 @@ uint16_t deserialize(char *buffer, void** packet_struct) {
   else if(packet_type == PACKET_TYPE_PROBEREQ) {
     struct probereq_packet* pack = malloc(sizeof(struct probereq_packet));
 
-    pack->packet_type = packet_type;
-    pack->packet_length = pack_length;
-
     if(pack_length != 8) {
       fprintf(stderr, "Wrong packet length of %u", pack_length);
       return 0;
@@ -165,9 +178,6 @@ uint16_t deserialize(char *buffer, void** packet_struct) {
   }
   else if(packet_type == PACKET_TYPE_PROBERES) {
     struct proberes_packet* pack = malloc(sizeof(struct proberes_packet));
-
-    pack->packet_type = packet_type;
-    pack->packet_length = pack_length;
 
     if(pack_length != 8) {
       fprintf(stderr, "Wrong packet length of %u", pack_length);
@@ -182,6 +192,9 @@ uint16_t deserialize(char *buffer, void** packet_struct) {
     fprintf(stderr, "Wrong packet type: %u\n", packet_type);
     return 0;
   }
+
+  /* Treat as data packet just to add header */
+  ((struct data_packet*)*packet_struct)->head = *head;
 
   return packet_type;
   
@@ -198,7 +211,7 @@ size_t serialize(uint16_t packet_type, void* packet, char** buffer) {
   size_t num_bytes;
   
   size_t header_size = sizeof(uint16_t) * 2; //data & length
-  size_t buffer_size = header_size + ((struct data_packet *)packet)->packet_length;
+  size_t buffer_size = header_size + ((struct data_packet *)packet)->head.packet_length;
   *buffer = malloc(buffer_size);
 
   /* Bitwise magic to set packet fields */
@@ -206,14 +219,14 @@ size_t serialize(uint16_t packet_type, void* packet, char** buffer) {
   uint16_t* pack_type = (uint16_t*) curr_ptr;
   *pack_type = packet_type;
   uint16_t* pack_len = (uint16_t*) (curr_ptr + sizeof(uint16_t));
-  *pack_len = ((struct data_packet *)packet)->packet_length;
-  curr_ptr = curr_ptr + (sizeof(uint16_t)*2);
+  *pack_len = ((struct data_packet *)packet)->head.packet_length;
+  curr_ptr = curr_ptr + (sizeof(struct header));
 
 
-  if(packet_type == UINT16_C(PACKET_TYPE_DATA)) {
+  if(packet_type == PACKET_TYPE_DATA) {
     struct data_packet* pack = (struct data_packet *) packet;
 
-    memcpy(curr_ptr, pack->datagram, pack->packet_length);
+    memcpy(curr_ptr, pack->datagram, pack->head.packet_length);
   } 
   else if(packet_type == PACKET_TYPE_LEAVE) {
     struct leave_packet* pack = (struct leave_packet *) packet;
@@ -299,19 +312,22 @@ size_t serialize(uint16_t packet_type, void* packet, char** buffer) {
 
 ssize_t read_wrapper(int socket_fd, char* buffer, size_t length) {
   ssize_t nread = 0;
+  ssize_t bytes_read = 0;
   while(length > 0) {
     nread = read(socket_fd, buffer, length);
     if (nread == -1) {
       return nread;
     }
+    bytes_read += nread;
     length -= nread;
   }
+  return bytes_read;
 }
 
-ssize_t socket_read(int socket_fd, char* buffer, size_t length) {
+ssize_t socket_read(int socket_fd, char** buffer, size_t length) {
 	ssize_t nread;
 
-	nread = read_wrapper(socket_fd, buffer, length);
+	nread = read_wrapper(socket_fd, *buffer, length);
 	if (nread == -1) {
 		fprintf(stderr, "Read failed.\n");
     return -1;
@@ -324,6 +340,11 @@ ssize_t socket_read(int socket_fd, char* buffer, size_t length) {
 	return nread;
 }
 
+/* Write to a file descriptor, from a buffer, of a certain size
+ * param socket_fd: socket file descriptor
+ * param buffer: Buffer to write
+ * param length: number of bytes to write
+ */
 ssize_t socket_write(int socket_fd, char* buffer, size_t length) {
   ssize_t nwrite;
 

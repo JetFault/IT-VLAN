@@ -38,53 +38,63 @@ struct linkstate {
   struct linkstate *next;
 };
 
-struct data_packet {
+struct header {
   uint16_t packet_type;
   uint16_t packet_length;
+};
+
+struct data_packet {
+  struct header head;
   char* datagram;
 };
 
+//Length should be 20
 struct leave_packet {
-  uint16_t packet_type;
-  uint16_t packet_length; //Should be 20
+  struct header head;
   struct proxy_addr local;
   uint64_t ID;
 };
 
+//Length should be 20
 struct quit_packet {
-  uint16_t packet_type;
-  uint16_t packet_length; //Should be 20
+  struct header head;
   struct proxy_addr local;
   uint64_t ID;
 };
 
 struct linkstate_packet {
-  uint16_t packet_type;
-  uint16_t packet_length;
+  struct header head;
   uint16_t num_neighbors;
   struct proxy_addr source;
   struct linkstate* linkstate_head;
 };
 
+//Length should be 8
 struct probereq_packet {
-  uint16_t packet_type;
-  uint16_t packet_length; //Should be 8
+  struct header head;
   uint64_t ID;
 };
 
+//Length should be 8
 struct proberes_packet {
-  uint16_t packet_type;
-  uint16_t packet_length; //Should be 8
+  struct header head;
   uint64_t ID; // Echo of the corresponding probe
 };
 
+
+/* Read from the socket fd to get a packet
+ * param socket_fd: Socket fd to read from
+ * param packet_struct: Address of where to store packet_struct
+ * return: the packet type, 0 if error
+ */
+uint16_t read_packet(int socket_fd, void** packet_struct);
 
 /* Deserialize a buffer sent over the network to a packet struct
  * param buffer: the buffer to deserialize
  * param packet_struct: the memory location where to allocate packet
  * return: the packet type, PACKET_TYPE_*
  */
-uint16_t deserialize(char *buffer, void** packet_struct);
+uint16_t deserialize(struct header* head, char *buffer, void** packet_struct);
 
 /* Serlialize a packet struct into a char* buffer to send over network
  * param packet_type: the packet_type, defined as PACKET_TYPE_*
@@ -93,5 +103,19 @@ uint16_t deserialize(char *buffer, void** packet_struct);
  * return: size of buffer
  */
 size_t serialize(uint16_t packet_type, void* packet, char** buffer);
+
+
+/* Read from a file descriptor, to a buffer, of a certain size
+ * param socket_fd: socket file descriptor
+ * param buffer: Buffer address to read into
+ * param length: number of bytes to read
+ */
+ssize_t socket_read(int socket_fd, char** buffer, size_t length);
+/* Write to a file descriptor, from a buffer, of a certain size
+ * param socket_fd: socket file descriptor
+ * param buffer: Buffer to write
+ * param length: number of bytes to write
+ */
+ssize_t socket_write(int socket_fd, char* buffer, size_t length);
 
 #endif

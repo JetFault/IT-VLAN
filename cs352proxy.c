@@ -12,7 +12,7 @@
 #include <linux/if_tun.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include <sys/select.h>
+//#include <sys/select.h>
 #include <sys/time.h>
 
 #include "tap.h"
@@ -89,7 +89,7 @@ void* run_tap_thread(void* arg) {
 		exit(1);
 	}
 
-	for(;;)
+	while(1)
 	{
 		data_size = socket_read(tap_fd, buff_tap_datagram, DATAGRAM_SIZE);
 
