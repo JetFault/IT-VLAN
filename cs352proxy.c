@@ -70,7 +70,6 @@ void poll_membership_list(){
 	}
 }
 
-
 void* run_tap_thread(void* arg) {
 	int socket_fd = (int)arg;
 	char *if_name = "tap0";
@@ -118,8 +117,9 @@ void* run_tap_thread(void* arg) {
 
 void* run_accept_thread(void* connection_fd) {
   int remote_fd = (int) connection_fd;
-	char* buff_datagram = malloc(sizeof(char)* DATAGRAM_SIZE);
-	unsigned short int data_size;
+
+  /* Check if host in membership list */
+  
 
   /* Wait for single record link state packet*/
 
@@ -204,6 +204,16 @@ void* start_tcp_listener(void* socket_arg) {
 
 };
 
+void connect_to_peers(struct peerlist* plist) {
+  struct peerlist* ptr = plist;
+
+  while(ptr != NULL) {
+    connect_to(ptr->hostname, ptr->port);
+    
+    ptr = ptr->next;
+  }
+}
+
 void* run_tcp_thread(void* socket_arg) {
 	unsigned short int h_type = 0;
 	unsigned short int h_size = 0;
@@ -274,52 +284,27 @@ void* run_tcp_thread(void* socket_arg) {
 int main(int argc, char** argv) {
 	pthread_t tcp_thread, tap_thread, poll_thread;
 
+  /* Parse config file */
 	if(argc == 2){
 		struct peerlist* peers = parse_file(argv[1], conf);
+    connect_to_peers(peers);
 	}
 	else{
 		exit(EXIT_FAILURE);
 	}
 
-	
- /* if(argc == 3 || argc == 4) {*/
-    /* Server Mode */
-    /*if(argc == 3) {
-      char * tap_arg = argv[2];
-      TAP_NAME = malloc(strlen(tap_arg) + 1);
-      TAP_NAME = strcpy(TAP_NAME, tap_arg);
-      server = 1;
-      tcp_fd = server_connect(atoi(argv[1]));
-    } */
-    /* Client Mode */
-    /*
-    else if(argc == 4) {
-      char * tap_arg = argv[3];
-      TAP_NAME = malloc(strlen(tap_arg) + 1);
-      TAP_NAME = strcpy(TAP_NAME, tap_arg);
-      server = 0;
-      tcp_fd = client_connect(argv[1], atoi(argv[2]));
-    } 
-    int socket_fd = initialize_tcp();
-  }*/
-	/* Wrong Arguments */
-/*	else {
-		perror("Usage: \
-				\tFor the 1st proxy (e.g. on machine X) \
-				\t\tcs352proxy <port> <local interface> \
-				\tFor the 2nd proxy (e.g. on machine Y) \
-				\t\tcs352proxy <remote host> <remote port> <local interface>");
-		return -1;
-	}*/
-
+  /* Run TCP Server Thread */
 	pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
 
+  /* Run TAP Thread if device has TAP */
 	if(conf->tap != NULL){
 		TAP_NAME = conf->tap;
 		pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
 	}
+
 	pthread_create(&poll_thread, NULL, poll_membership_list,); 
 
+  /* Wait for TCP and TAP and Polling thread */
   (void) pthread_join(tcp_thread, NULL);
   if(conf->tap !=NULL){
   	(void) pthread_join(tap_thread, NULL);
