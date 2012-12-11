@@ -66,7 +66,8 @@ void* start_tcp_listener(void* socket_arg) {
     assert(pack.local.ip == deser_pack->local.ip);
     assert(strncmp(pack.local.mac_addr, deser_pack->local.mac_addr, 6) == 0);
     assert(pack.ID == deser_pack->ID);
-		printf("shit worked");
+
+    printf("shit passed");
   }
 }
 

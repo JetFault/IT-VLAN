@@ -1,7 +1,7 @@
 CC = gcc -std=c99
 CCFLAGS = -gdwarf-2 -g3
 
-all: serialization
+all: serialization sending
 
 serialization: vlanpacket.o
 		$(CC) $(CCFLAGS) -o serialization serialization_test.c  vlanpacket.o 
