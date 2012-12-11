@@ -6,7 +6,10 @@ all: serialization
 serialization: vlanpacket.o
 		$(CC) $(CCFLAGS) -o serialization serialization_test.c  vlanpacket.o 
 
-connect.o: connect.c
+sending: vlanpacket.o connect.o 
+		$(CC) $(CCFLAGS) -o sending packet_sending_test.c vlanpacket.o connect.o -lpthread
+
+connect.o: ../connect.c
 	$(CC) $(CCFLAGS) -c ../connect.c
 
 tap.o: tap.c

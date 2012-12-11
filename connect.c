@@ -15,11 +15,11 @@
  * return: file descriptor for the socket, -1 if error
  */
 int create_socket() {
-  int socket_fd, ret_status;
+  int socket_fd;
 
 
-  if ((ret_status = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    fprintf(stderr, "Failed creating socket. Return: %d \n", ret_status);
+  if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    fprintf(stderr, "Failed creating socket.\n");
     return -1;
   }
 
@@ -65,7 +65,7 @@ int get_socket_info(char* host, int port, struct sockaddr_in* sock_info) {
         fprintf(stderr, "Host name %s not found\n", host); 
         return -1;
       } 
-      bcopy(hp->h_addr, &(sock_info->sin_addr), hp->h_length); 
+      memcpy(&(sock_info->sin_addr), hp->h_addr, hp->h_length); 
     } 
   }
 
@@ -73,7 +73,33 @@ int get_socket_info(char* host, int port, struct sockaddr_in* sock_info) {
 }
 
 
+/* Connect to a host and port. Client connections
+ * param host: host either DNS, IPv4, or null for server sockets
+ * param port: port * return: socket file descriptor for the connect, -1 on error
+ */
+int connect_to(char* host, int port) {
+  struct sockaddr_in socket_info;
+  int socket_fd;
 
+  socket_fd = create_socket();
+  if(socket_fd == -1) {
+    fprintf(stderr, "Failure creating socket\n");
+    return -1;
+  }
+
+  /* Create the socket info */
+  if(!get_socket_info(host, port, &socket_info)) {
+    fprintf(stderr, "Failure getting socket info\n");
+    return -1;
+  }
+
+  if(connect(socket_fd,(struct sockaddr *) &socket_info, sizeof(socket_info)) < 0)  {
+    fprintf(stderr, "ERROR connecting\n");
+    return -1;
+  }
+
+  return socket_fd;
+}
 
 
 #if 0
