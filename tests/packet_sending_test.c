@@ -66,7 +66,7 @@ void* start_tcp_listener(void* socket_arg) {
     assert(pack.local.ip == deser_pack->local.ip);
     assert(strncmp(pack.local.mac_addr, deser_pack->local.mac_addr, 6) == 0);
     assert(pack.ID == deser_pack->ID);
-
+		printf("shit worked");
   }
 }
 
@@ -83,9 +83,9 @@ int main() {
   int connection_fd = connect_to("localhost", 3600);
 
   char* buffer;
-  serialize(pack.head.packet_type, &pack, &buffer);
+  size_t buflen = serialize(pack.head.packet_type, &pack, &buffer);
 
-  socket_write(connection_fd, buffer, pack.head.packet_length);
+  socket_write(connection_fd, buffer, buflen);
 
   pthread_join(server_tcp_thread, NULL);
 

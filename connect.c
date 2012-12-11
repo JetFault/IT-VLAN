@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include "connect.h"
 
@@ -93,8 +94,9 @@ int connect_to(char* host, int port) {
     return -1;
   }
 
+	errno = 0;
   if(connect(socket_fd,(struct sockaddr *) &socket_info, sizeof(socket_info)) < 0)  {
-    fprintf(stderr, "ERROR connecting\n");
+    fprintf(stderr, "ERROR connecting. Error: %s\n",strerror(errno));
     return -1;
   }
 
