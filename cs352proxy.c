@@ -66,7 +66,7 @@ void poll_membership_list(){
 	for(;;){
 	/*send packets */
 		delete_members();
-		sleep(conf->linkperiod);
+		sleep(conf->linkTimeout);
 	}
 }
 
