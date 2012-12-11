@@ -22,3 +22,4 @@ vlanpacket.o: ../vlanpacket.c
 clean:
 	rm -f *.o
 	rm -f serialization
+	rm -f sending
