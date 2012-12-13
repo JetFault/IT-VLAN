@@ -5,8 +5,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <errno.h>
+#include <sys/time.h>
 
 #include "vlanpacket.h"
+
+double current_time() {
+  struct timeval  tv;
+  gettimeofday(&tv, NULL);
+
+  // convert tv_sec & tv_usec to millisecond
+  return (tv.tv_sec) * 1000 + (tv.tv_usec) / 1000 ;
+}
 
 
 /* Helper function to serialize the proxy address
@@ -37,7 +47,7 @@ int deserialize_proxy_addr(char* data_start, struct proxy_addr * proxy_address) 
 
     proxy_address->ip = local_ip;
     proxy_address->port = local_port;
-    memcpy(proxy_address->mac_addr, mac_addr, 6*sizeof(char));
+    memcpy(proxy_address->mac_addr, mac_addr, 6*sizeof(uint8_t));
 
     return sizeof(struct proxy_addr);
 }
@@ -364,3 +374,45 @@ ssize_t socket_write(int socket_fd, char* buffer, size_t length) {
 	return nwrite;
 }
 
+
+/* Get local socket information and create proxy_addr
+ * param socket_fd: socket file descriptor
+ * param proxy_addr: address of where to put proxy_addr
+ * return: -1 on failure, 0 on success
+ */
+int get_local_info(int socket_fd, struct proxy_addr* info) {
+  struct sockaddr_in sock_info;
+  size_t sock_info_size = sizeof(sock_info);
+
+  errno=0;
+  if(getsockname(socket_fd, (struct sockaddr*)&sock_info, &sock_info_size) == -1) {
+    fprintf(stderr, "Error getting local socket info. Error: %s", strerror(errno));
+    return -1;
+  }
+
+  info->ip = ntohl(sock_info.sin_addr.s_addr);
+  info->port = ntohs(sock_info.sin_port);
+
+  return 0;
+}
+
+/* Get remote socket information and create proxy_addr
+ * param socket_fd: socket file descriptor
+ * param proxy_addr: address of where to put proxy_addr
+ * return: -1 on failure, 0 on success
+ */
+int get_remote_info(int socket_fd, struct proxy_addr* info) {
+  struct sockaddr_in sock_info;
+  size_t sock_info_size = sizeof(sock_info);
+
+  errno=0;
+  if(getsockname(socket_fd, (struct sockaddr*)&sock_info, &sock_info_size) == -1) {
+    fprintf(stderr, "Error getting local socket info. Error: %s", strerror(errno));
+    return -1;
+  }
+
+  info->ip = ntohl(sock_info.sin_addr.s_addr);
+  info->port = ntohs(sock_info.sin_port);
+
+  return 0;
+}

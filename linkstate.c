@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include "linkstate.h"
 
 #define LINE_SIZE 256
@@ -61,4 +62,72 @@ struct peerlist* parse_file(char* input_file,struct config* conf){
 	fclose(config_file);
 	
 	return list;
+}
+
+/* Delete expired members in membership list
+ * param list: membership list
+ * param link_timeout: link_timeout
+ */
+void delete_expired_members(struct linkstate* list, int link_timeout) {
+
+	struct timeval time;
+	struct linkstate* tmp;
+  struct linkstate* ptr = list;
+
+	gettimeofday(&time,NULL);
+
+	while(ptr != NULL)	{
+		if((time.tv_sec - ptr->ID) > link_timeout){
+
+      if(ptr == list) { // Delete Head
+        struct linkstate* t = ptr;
+				list = list->next;
+				ptr = list;
+        free(t);
+
+      } else {
+				tmp->next = ptr->next;
+				free(ptr);
+				ptr = tmp->next;
+      }
+		}
+		else{
+			tmp = ptr;
+			ptr = ptr->next;
+		}
+
+	}
+}
+
+/* Send a linkstate packet to a socket
+ *
+ * return: Number of neighbors sent
+ */
+int send_linkstate(int socket_fd, struct linkstate* membership_list) {
+  struct linkstate_packet lstate_pack;
+  
+  struct linkstate* ptr = membership_list;
+  uint16_t size = 0;
+
+  while(ptr != NULL) {
+    size++;
+  }
+
+  if(size == 0) {
+    #if DEBUG
+    printf("Size of 0, not sending\n");
+    #endif
+    return 0;
+  }
+
+  lstate_pack.head.packet_type = PACKET_TYPE_LINKSTATE;
+  lstate_pack.head.packet_length = sizeof(uint16_t) +
+    sizeof(struct proxy_addr) + (sizeof(struct linkstate)*size);
+  lstate_pack.num_neighbors = size;
+  get_local_info(socket_fd, &lstate_pack.source);
+  lstate_pack.linkstate_head = membership_list;
+
+  //Should send now TODO
+  
+  
 }

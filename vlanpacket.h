@@ -27,9 +27,10 @@
 struct proxy_addr {
   uint32_t ip;
   uint16_t port;
-  char     mac_addr[6]; //48 bits, 6 bytes
+  uint8_t  mac_addr[6]; //48 bits, 6 bytes.
 };
 
+// Edge of a network
 struct linkstate {
   struct proxy_addr local;
   struct proxy_addr remote;
@@ -81,6 +82,10 @@ struct proberes_packet {
   uint64_t ID; // Echo of the corresponding probe
 };
 
+/* Get the current time in milliseconds
+ * return: double of current time in milliseconds
+ */
+double current_time();
 
 /* Read from the socket fd to get a packet
  * param socket_fd: Socket fd to read from
@@ -88,6 +93,13 @@ struct proberes_packet {
  * return: the packet type, 0 if error
  */
 uint16_t read_packet(int socket_fd, void** packet_struct);
+
+/* Send the packet to the destination
+ * param dest: struct proxy_addr of the destination
+ * param packet: a packet typecasted as void* to send
+ * return: -1 on failure, 0 on success
+ */
+int send_to(struct proxy_addr* dest, void* packet);
 
 /* Deserialize a buffer sent over the network to a packet struct
  * param buffer: the buffer to deserialize
@@ -111,11 +123,27 @@ size_t serialize(uint16_t packet_type, void* packet, char** buffer);
  * param length: number of bytes to read
  */
 ssize_t socket_read(int socket_fd, char** buffer, size_t length);
+
 /* Write to a file descriptor, from a buffer, of a certain size
  * param socket_fd: socket file descriptor
  * param buffer: Buffer to write
  * param length: number of bytes to write
  */
 ssize_t socket_write(int socket_fd, char* buffer, size_t length);
+
+/* Get local socket information and create proxy_addr
+ * param socket_fd: socket file descriptor
+ * param proxy_addr: address of where to put proxy_addr
+ * return: -1 on failure, 0 on success
+ */
+int get_local_info(int socket_fd, struct proxy_addr* info);
+
+/* Get remote socket information and create proxy_addr
+ * param socket_fd: socket file descriptor
+ * param proxy_addr: address of where to put proxy_addr
+ * return: -1 on failure, 0 on success
+ */
+int get_remote_info(int socket_fd, struct proxy_addr* info);
+
 
 #endif

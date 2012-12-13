@@ -64,13 +64,13 @@
   - Add currently open sockets to linkstate list
   - Route packets to appropriate end host
   - ID should be current time in milliseconds
-  - Create a Client and Server socket
+  * Create a Client and Server socket
   - Server
     + Accept a connection
       - Wait for for a 1 record linkstate packet
       - If the first packet is not a single record link state packet,
         + the proxy will close the connection.
-      - If it is, it adds the client in the to the membership list.
+      - If it is, it adds the client in to the membership list.
       - The server then generates it's own link state packet and sends over same socket
       - The RTT should be set to 1 and the ID set to the current time.
   - Client

@@ -22,6 +22,8 @@
 
 #define DATAGRAM_SIZE 2048
 
+#define PROBE_SCHED 1
+
 struct config* conf;
 struct linkstate* list;
 int server = 0;
@@ -29,116 +31,152 @@ int tcp_fd = -1;
 int tap_fd = -1;
 
 char* TAP_NAME;
+char* TAP_MAC;
 
-void delete_members() {
 
-	struct timeval time;
-  struct linkstate* ptr = list;
-	struct linkstate* tmp;
+void* poll_membership_list(void* peers){
+	int time_passed = 0;
+	while(1) {
+    /* Every LinkTimeout seconds */
+    if(time_passed >= conf->linktimeout) {
+      /* Send linkstate*/ 
 
-	gettimeofday(&time,NULL);
 
-	while(ptr != NULL)	{
-		if((time.tv_sec - ptr->ID) > conf->linktimeout){
+      /* Delete expired members */
+      delete_expired_members(list, conf->linktimeout);
+      time_passed = 0;
+    }
 
-      if(ptr == list) { // Delete Head
-        struct linkstate* t = ptr;
-				list = list->next;
-				ptr = list;
-        free(t);
+    /* Send Probes every 1 sec */
 
-      } else {
-				tmp->next = ptr->next;
-				free(ptr);
-				ptr = tmp->next;
-      }
-		}
-		else{
-			tmp = ptr;
-			ptr = ptr->next;
-		}
 
+		sleep(PROBE_SCHED);
+    time_passed++;
 	}
 }
 
-void poll_membership_list(){
-	
-	for(;;){
-	/*send packets */
-		delete_members();
-		sleep(conf->linkTimeout);
-	}
+/* Packet retrieval logic
+ * param packet: packet typecasted as void*
+ * return: -1 on error, 1 on success
+ */
+int packet_ret_logic(void* packet) {
+  uint16_t pack_type = ((struct data_packet*)packet)->head.packet_type;
+  if(pack_type == PACKET_TYPE_DATA) {
+    struct data_packet* data_pack = (struct data_packet*)packet;
+
+    struct proxy_addr src, dest;
+    find_tap_dest(data_pack->datagram, &src, &dest);
+
+    if
+    
+    
+  } else if(pack_type == PACKET_TYPE_LEAVE) {
+
+  } else if(pack_type == PACKET_TYPE_QUIT) {
+
+  } else if(pack_type == PACKET_TYPE_LINKSTATE) {
+  
+  } else if(pack_type == PACKET_TYPE_PROBEREQ) {
+
+  } else if(pack_type == PACKET_TYPE_PROBERES) {
+
+  } else {
+    fprintf(stderr, "Wrong packet type: %u\n", pack_type);
+    return -1;
+  }
 }
 
 void* run_tap_thread(void* arg) {
 	int socket_fd = (int)arg;
 	char *if_name = "tap0";
 
+  int ret_status;
+
 	//int socket_fd = tcp_fd;
 
 	unsigned short int data_size = 0;
 
-	char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
 	unsigned short int h_type = 0;
 	unsigned short int h_size = 0;
-	char* local_mac = malloc(sizeof(char)*6);
+	TAP_MAC = malloc(sizeof(char)*6);
 
-	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PIi,local_mac)) < 0 ) {
+	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PI, TAP_MAC)) < 0 ) {
 		perror("Opening tap interface failed! \n");
 		exit(1);
 	}
 
+  /* Keep reading from that socket for more datagrams */
 	while(1)
 	{
-		data_size = socket_read(tap_fd, buff_tap_datagram, DATAGRAM_SIZE);
+    char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
 
+		data_size = socket_read(tap_fd, &buff_tap_datagram, DATAGRAM_SIZE);
 
     if(data_size == 0) {
       continue;
     }
 
-		struct data_packet* packgram = malloc(sizeof(struct data_packet));
-		packgram->packet_type = 0xABCD;
-		packgram->pack_length = data_size;
-		packgram->datagram = buff_tap_datagram;
+    struct proxy_addr src, dest;
 
-		serialize(packgram->packet_type,packgram,buff_tap_diagram);
 
-		
-		
-		h_type = htons(0xABCD);
-		h_size = htons(data_size);
+    ret_status = find_tap_dest(buff_tap_datagram, &src, &dest);
+    if(ret_status == -1) {
+      fprintf(stderr, "Error decoding tap datagram source/destination\n");
+      free(buff_tap_datagram);
+      continue;
+    } else if(ret_status == 1) {
+      //Handle ARP
+    }
 
-		socket_write(socket_fd, (char *)&h_type, HEADER_TYPE_SIZE);
-		socket_write(socket_fd, (char *)&h_size, HEADER_SIZE_SIZE);
-		socket_write(socket_fd, buff_tap_datagram, data_size);
-	}
+    /* Create a Data packet */
+		struct data_packet* data_pack = malloc(sizeof(struct data_packet));
+		data_pack->head.packet_type = 0xABCD;
+		data_pack->head.packet_length = data_size;
+    data_pack->datagram = buff_tap_datagram;
+
+    /* Send the packet to the destination */
+    send_to(&dest, (void *)data_pack);
+	 }
 }
 
 void* run_accept_thread(void* connection_fd) {
   int remote_fd = (int) connection_fd;
 
   /* Check if host in membership list */
-  
+  /* Yes */
+  if(in_member_list(remote_fd)) {
 
-  /* Wait for single record link state packet*/
+  } 
+  /* No */
+  else {
+    /* Wait for single record link state packet*/
+    /* Read from remote */
+    void* pack;
+    uint16_t pack_type = read_packet(remote_fd, &pack);
 
-  /* Read from remote */
-	data_size = socket_read(remote_fd, buff_datagram, DATAGRAM_SIZE);
+    /* If Packet is a single record Linkstate */
+    if(pack_type == PACKET_TYPE_LINKSTATE) {
+      /* Add client to Membership list */
+      add_member(remote_fd, (struct linkstate_packet *)pack);
+
+      /* Send Link State packet with RTT of 1 and current time to now */
+      struct linkstate* l_state;
+      struct proxy_addr local, remote;
+
+      get_local_info(remote_fd, &local);
+      get_remote_info(remote_fd, &remote);
+      l_state->avg_RTT = 1;
+      l_state->ID = current_time();
+      l_state->next = NULL;
+
+      send_linkstate(remote_fd, l_state);
+    } 
+    /* Not single record linkstate, drop client */
+    else {
+      close(remote_fd);
+    }
+
 	
-  /* Deserialize packet and check if Linkstate & 1 record only */
-	void * packet;
-	uint16_t packet_type = deserialize(buff_datagram, packet);
-	if( packet_type == UINT16_C(PACKET_TYPE_LINKSTATE)) {
-    /* Add client to Membership list */
-
-    /* Send Link State packet with RTT of 1 and current time to now */
-		struct linkstate_packet* = malloc(sizeof(struct linkstate_packet));
-		struct proxy_addr* local = malloc(sizeof(struct proxy_addr));
-		struct proxyaddr* remote = malloc(sizeof(struct proxy_addr));
-		linkstate_packet->avg_RTT = 1;
-		int time_now = ;
-		linkstate_packet->ID = time_now;
 
 
 		
@@ -208,7 +246,20 @@ void connect_to_peers(struct peerlist* plist) {
   struct peerlist* ptr = plist;
 
   while(ptr != NULL) {
-    connect_to(ptr->hostname, ptr->port);
+    int connection_fd = connect_to(ptr->hostname, ptr->port);
+
+    /* Send 1 record linkstate packet,
+     * with RTT of 1 and ID of current time */
+    struct linkstate * self_lstate = malloc(sizeof(struct linkstate));
+    linkstate->local = ;
+    linkstate->local = ;
+    linkstate->local = 1;
+    linkstate->local = current_time();
+    linkstate->local = NULL;
+
+    /* Accept 1 record linkstate packet of end peer */
+
+
     
     ptr = ptr->next;
   }
@@ -284,17 +335,16 @@ void* run_tcp_thread(void* socket_arg) {
 int main(int argc, char** argv) {
 	pthread_t tcp_thread, tap_thread, poll_thread;
 
-  /* Parse config file */
-	if(argc == 2){
-		struct peerlist* peers = parse_file(argv[1], conf);
-    connect_to_peers(peers);
-	}
-	else{
+  if(argc != 2) {
 		exit(EXIT_FAILURE);
 	}
 
+  /* Parse config file */
+  struct peerlist* peers = parse_file(argv[1], conf);
+
   /* Run TCP Server Thread */
 	pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
+
 
   /* Run TAP Thread if device has TAP */
 	if(conf->tap != NULL){
@@ -302,7 +352,11 @@ int main(int argc, char** argv) {
 		pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
 	}
 
-	pthread_create(&poll_thread, NULL, poll_membership_list,); 
+  /* Run Polling Thread */
+	pthread_create(&poll_thread, NULL, poll_membership_list, (void *)peers); 
+
+  /* Connect to peers */
+  connect_to_peers(peers);
 
   /* Wait for TCP and TAP and Polling thread */
   (void) pthread_join(tcp_thread, NULL);
