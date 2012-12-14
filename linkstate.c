@@ -165,6 +165,29 @@ void delete_expired_members(struct membership_list* members, int link_timeout) {
 	}
 }
 
+/* Helper function to see if you have seen the packet in last 5 sec
+ *return: 0 if it has seen it, -1 if it has not
+ */
+int is_seen(struct last_seen* list, void* packet, struct proxy_addr* source, struct proxy_addr* dest){
+		struct last_seen* ptr = list;
+		int temp1, temp2;
+
+		while(ptr != NULL){
+			if(((compare_proxy_addr(list->source, source)) == 0) && (compare_proxy_addr(list->dest, dest) == 0)){
+				if(packet->ID == ptr->ID){
+					return 0;
+				}
+
+			}
+		}
+
+		return -1;
+
+
+}
+
+
+
 /* Send a linkstate packet to a socket
  * param socket_fd: socket to send to
  * param membership list: list of linkstates to create

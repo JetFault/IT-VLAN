@@ -17,6 +17,13 @@ struct peerlist {
 	struct peerlist* next;
 };
 
+struct last_seen {
+	uint64_t ID;
+	struct proxy_addr source;
+	struct proxy_addr dest;
+	struct last_seen* next;
+};
+
 /* Parse the config file and put results in conf
  * param input_file: input file
  * param conf: struct config address 
@@ -44,6 +51,11 @@ int get_peer_route(struct proxy_addr* dest);
 int send_linkstate(int socket_fd, struct linkstate* l_state);
 
 struct linkstate* in_member_list(struct membership_list* members, struct proxy_addr* local, struct proxy_addr* remote);
+
+/* Helper function to see if you have seen the packet in last 5 sec
+ *return: 0 if it has seen it, -1 if it has not
+ */
+int is_seen(struct last_seen* list, void* packet, struct proxy_addr* source, struct proxy_addr* dest);
 
 
 #endif

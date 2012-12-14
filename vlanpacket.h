@@ -156,4 +156,10 @@ int get_local_info(int socket_fd, struct proxy_addr* info);
 int get_remote_info(int socket_fd, struct proxy_addr* info);
 
 
+/* Helper function to compare two proxy_addr's
+ * param paddr1 : first proxy_addr to compare
+ * param paddr2 : second proxy_addr to compate to
+ * return: -1 if not the same, 0 if they are the same
+ */
+int compare_proxy_addr(struct proxy_addr* paddr1, struct proxy_addr* paddr2);
 #endif

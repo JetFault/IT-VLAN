@@ -52,7 +52,27 @@ int deserialize_proxy_addr(char* data_start, struct proxy_addr * proxy_address) 
     return sizeof(struct proxy_addr);
 }
 
+/* Helper function to compare two proxy_addr's
+ * param paddr1 : first proxy_addr to compare
+ * param paddr2 : second proxy_addr to compate to
+ * return: -1 if not the same, 0 if they are the same
+ */
+int compare_proxy_addr(struct proxy_addr* paddr1, struct proxy_addr* paddr2){
+	if((paddr1->ip == paddr2->ip) && (paddr1->port == paddr2->port)){
+		int i;
+		for(i = 0; i < 6; i++){
+			if(paddr1->mac_addr[i] != paddr2->mac_addr[i]){
+				return -1;
+			}
+		}
+		return 0;
+	}else{
+		return -1;
+	}
+	
+	return -1;
 
+}
 /* Read from the socket fd to get a packet
  * param socket_fd: Socket fd to read from
  * param packet_struct: Address of where to store packet_struct
