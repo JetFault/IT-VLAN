@@ -79,17 +79,13 @@ int broadcast(struct routes* route_list, void* packet);
 
 int send_linkstate(int socket_fd, struct linkstate* l_state);
 
-
-<<<<<<< HEAD
 /* Helper function to see if you have seen the packet in last 5 sec
  *return: 0 if it has seen it, -1 if it has not
  */
 int is_seen(struct last_seen* list, void* packet, struct proxy_addr* source, struct proxy_addr* dest);
 
-=======
 void send_probes(struct routes* route_list, struct probereq_list* probe_list);
 
 uint32_t receive_probe(struct membership_list* member_list, struct proberes_packet* proberes_pack);
->>>>>>> 868dd6f1cb75e37408ebc824bf38f47ffee48069
 
 #endif
