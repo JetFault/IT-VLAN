@@ -27,6 +27,7 @@
 struct config* conf;
 struct routes* route_list;
 struct membership_list* member_list;
+struct probereq_list* probe_list;
 int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
@@ -41,19 +42,18 @@ void* poll_membership_list(void* peers){
 
 	while(1) {
     /* Every LinkTimeout seconds */
-    if(time_passed >= conf->linktimeout) {
+    if(timeout_passed >= conf->linktimeout) {
       /* Delete expired members */
       delete_expired_members(member_list, conf->linktimeout);
       timeout_passed = 0;
     }
 		if(timeperiod_passed == conf->linkperiod){
-
       /* Send linkstate*/ 
 			flood_linkstate(route_list, member_list->list);
 			timeperiod_passed = 0;
 		}
     /* Send Probes every 1 sec */
-
+    send_probes(route_list, probe_list);
 
 		sleep(PROBE_SCHED);
     timeout_passed++;
@@ -65,7 +65,7 @@ void* poll_membership_list(void* peers){
  * param packet: packet typecasted as void*
  * return: -1 on error, 1 on success
  */
-int packet_ret_logic(void* packet) {
+int packet_ret_logic(void* packet, int socket_fd) {
   uint16_t pack_type = ((struct data_packet*)packet)->head.packet_type;
   if(pack_type == PACKET_TYPE_DATA) {
     struct data_packet* data_pack = (struct data_packet*)packet;
@@ -77,14 +77,19 @@ int packet_ret_logic(void* packet) {
     
   } else if(pack_type == PACKET_TYPE_LEAVE) {
 
+
   } else if(pack_type == PACKET_TYPE_QUIT) {
+    
 
   } else if(pack_type == PACKET_TYPE_LINKSTATE) {
-  
+    struct linkstate_packet* lstate_pack = (struct linkstate_packet*)packet;
+    add_members(member_list, lstate_pack->linkstate_head);
   } else if(pack_type == PACKET_TYPE_PROBEREQ) {
-
+    /* Send probe res */
+    send_to(NULL, (struct proberes_packet*)packet, socket_fd);
   } else if(pack_type == PACKET_TYPE_PROBERES) {
-
+    /* update RTT based on probe res time */
+    receive_probe(member_list, (struct proberes_packet*)packet);
   } else {
     fprintf(stderr, "Wrong packet type: %u\n", pack_type);
     return -1;
@@ -93,11 +98,8 @@ int packet_ret_logic(void* packet) {
 
 void* run_tap_thread(void* arg) {
 	int socket_fd = (int)arg;
-	char *if_name = "tap0";
 
   int ret_status;
-
-	//int socket_fd = tcp_fd;
 
 	unsigned short int data_size = 0;
 

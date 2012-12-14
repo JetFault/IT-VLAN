@@ -40,12 +40,6 @@ struct linkstate {
   struct linkstate *next;
 };
 
-//Membership List
-struct membership_list {
-	struct linkstate* list;
-	int size;
-	pthread_mutex_t lock;
-}
 
 struct header {
   uint16_t packet_type;
