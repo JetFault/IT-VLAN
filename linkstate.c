@@ -100,34 +100,42 @@ void delete_expired_members(struct linkstate* list, int link_timeout) {
 }
 
 /* Send a linkstate packet to a socket
- *
+ * param socket_fd: socket to send to
+ * param membership list: list of linkstates to create
+ *      a linkstate packet from and send
  * return: Number of neighbors sent
  */
 int send_linkstate(int socket_fd, struct linkstate* membership_list) {
   struct linkstate_packet lstate_pack;
-  
-  struct linkstate* ptr = membership_list;
-  uint16_t size = 0;
 
-  while(ptr != NULL) {
-    size++;
-  }
+  get_local_info(socket_fd, &lstate_pack.source);
 
-  if(size == 0) {
+  /* Send linkstate packet to socket */
+  send_to(NULL, &lstate_pack, socket_fd);
+  //TODO: Figure out how to lock here and send
+}
+
+int create_linkstate_packet(struct membership_list* member_list, 
+    struct proxy_addr* source, struct linkstate_packet* lstate_pack) {
+
+  int list_size = member_list->size;
+
+  if(list_size == 0) {
     #if DEBUG
     printf("Size of 0, not sending\n");
     #endif
     return 0;
   }
 
-  lstate_pack.head.packet_type = PACKET_TYPE_LINKSTATE;
-  lstate_pack.head.packet_length = sizeof(uint16_t) +
-    sizeof(struct proxy_addr) + (sizeof(struct linkstate)*size);
-  lstate_pack.num_neighbors = size;
-  get_local_info(socket_fd, &lstate_pack.source);
-  lstate_pack.linkstate_head = membership_list;
+  lstate_pack->head.packet_type = PACKET_TYPE_LINKSTATE;
+  lstate_pack->head.packet_length = sizeof(uint16_t) +
+      sizeof(struct proxy_addr) + (sizeof(struct linkstate)*list_size);
+  lstate_pack->num_neighbors = list_size;
+  lstate_pack->linkstate_head = member_list->list;
 
-  //Should send now TODO
-  
-  
+  return list_size;
 }
+
+int flood_linkstate(struct routes* route_list, struct linkstate* member_list) {
+
+};

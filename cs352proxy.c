@@ -26,6 +26,7 @@
 
 struct config* conf;
 struct linkstate* list;
+struct routes* route_list;
 int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
@@ -43,7 +44,7 @@ void* poll_membership_list(void* peers){
 
 
       /* Delete expired members */
-      delete_expired_members(list, conf->linktimeout);
+      delete_expired_members(member_list, conf->linktimeout);
       time_passed = 0;
     }
 
@@ -67,7 +68,6 @@ int packet_ret_logic(void* packet) {
     struct proxy_addr src, dest;
     find_tap_dest(data_pack->datagram, &src, &dest);
 
-    if
     
     
   } else if(pack_type == PACKET_TYPE_LEAVE) {
@@ -142,10 +142,15 @@ void* run_tap_thread(void* arg) {
 void* run_accept_thread(void* connection_fd) {
   int remote_fd = (int) connection_fd;
 
+  struct proxy_addr local, remote;
+
+  get_local_info(remote_fd, &local);
+  get_remote_info(remote_fd, &remote);
+
   /* Check if host in membership list */
   /* Yes */
-  if(in_member_list(remote_fd)) {
-
+  if(in_member_list(member_list, &local, &remote)) {
+    
   } 
   /* No */
   else {
@@ -155,16 +160,14 @@ void* run_accept_thread(void* connection_fd) {
     uint16_t pack_type = read_packet(remote_fd, &pack);
 
     /* If Packet is a single record Linkstate */
-    if(pack_type == PACKET_TYPE_LINKSTATE) {
+    if(pack_type == PACKET_TYPE_LINKSTATE &&
+           ((struct linkstate_packet *)pack)->num_neighbors == 1) {
+
       /* Add client to Membership list */
-      add_member(remote_fd, (struct linkstate_packet *)pack);
+      add_member(member_list, (struct linkstate_packet *)pack->linkstate_head);
 
       /* Send Link State packet with RTT of 1 and current time to now */
       struct linkstate* l_state;
-      struct proxy_addr local, remote;
-
-      get_local_info(remote_fd, &local);
-      get_remote_info(remote_fd, &remote);
       l_state->avg_RTT = 1;
       l_state->ID = current_time();
       l_state->next = NULL;
@@ -174,17 +177,10 @@ void* run_accept_thread(void* connection_fd) {
     /* Not single record linkstate, drop client */
     else {
       close(remote_fd);
+      return NULL;
     }
-
-	
-
-
 		
-	} else {
-		/* If not close connection */
-		close(remote_fd);
-		return;
-	}
+	} 
 
   /* Keep this connection alive */
   while(1) {

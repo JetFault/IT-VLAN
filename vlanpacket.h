@@ -97,9 +97,11 @@ uint16_t read_packet(int socket_fd, void** packet_struct);
 /* Send the packet to the destination
  * param dest: struct proxy_addr of the destination
  * param packet: a packet typecasted as void* to send
+ * param socket_fd: optional, if this is not 0, send directly
+ *    to that socket, ignoring the dest parameter
  * return: -1 on failure, 0 on success
  */
-int send_to(struct proxy_addr* dest, void* packet);
+int send_to(struct proxy_addr* dest, void* packet, int socket_fd);
 
 /* Deserialize a buffer sent over the network to a packet struct
  * param buffer: the buffer to deserialize
