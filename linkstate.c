@@ -64,38 +64,104 @@ struct peerlist* parse_file(char* input_file,struct config* conf){
 	return list;
 }
 
+void add_member(struct membership_list* members, struct linkstate* link){
+	
+	pthread_mutex_lock(&(members->lock));
+	
+	if(struct linkstate* temp = in_member_list(members,link->local,link->remote)){
+		if(temp->ID > link->ID){
+			delete_member(members, link);
+		}else{
+			return;
+		}
+	}else {
+		struct linkstate* temp = members->list;
+		struct linkstate* ptr = link;
+		ptr->next = temp;
+		members->list = ptr;
+		members->size++;
+	}
+	pthread_mutex_unlock(&(members->lock));
+	
+	return;
+}
+
+
+struct linkstate* in_member_list(struct membership_list* members, 
+		struct proxy_addr* local, struct proxy_addr* remote){
+
+	pthread_mutex_lock(&(members->lock));
+	struct linkstate* ptr = members->list;
+	struct linkstate* found;
+
+	while(ptr != NULL){
+		
+		if(((remote->ip == ptr->remote->ip) && (remote->port == ptr->remote->port)) &&
+				((local->ip == ptr->local->ip) && (local->port == ptr->local->port))){
+			found = ptr;
+			break;
+		}
+		else{
+			ptr = ptr->next;
+		}
+		
+	}
+
+	pthread_mutex_unlock(&(members->lock));
+	
+	return found;
+}
+
+/* Delete a member in the membership list
+ * param members: membership list
+ * param link: linkstate to delete
+ */
+void delete_member(struct membership_list* members, struct linkstate* link){
+	pthread_mutex_lock(&(members->lock));
+	struct linkstate* curr = members->list;
+	struct linkstate* prev = NULL;
+	
+	while(curr != NULL)	{
+
+		if(curr == link) { //Found linkstate
+			if(prev == NULL) { // Delete Head
+				members->list = curr->next;
+			} else{
+				prev->next = curr->next;
+				free(curr);
+			}
+			members->size--;
+			break;
+		}
+		else{
+			prev = curr;
+			curr = curr->next;
+		}
+	}
+	pthread_mutex_unlock(&(members->lock));
+}
+
 /* Delete expired members in membership list
  * param list: membership list
  * param link_timeout: link_timeout
  */
-void delete_expired_members(struct linkstate* list, int link_timeout) {
+void delete_expired_members(struct membership_list* members, int link_timeout) {
 
-	struct timeval time;
 	struct linkstate* tmp;
-  struct linkstate* ptr = list;
-
-	gettimeofday(&time,NULL);
+  struct linkstate* ptr = members->list;
+	
+	double curr_time = current_time();
+	int micro_timeout = link_timeout*1000;
 
 	while(ptr != NULL)	{
-		if((time.tv_sec - ptr->ID) > link_timeout){
-
-      if(ptr == list) { // Delete Head
-        struct linkstate* t = ptr;
-				list = list->next;
-				ptr = list;
-        free(t);
-
-      } else {
-				tmp->next = ptr->next;
-				free(ptr);
-				ptr = tmp->next;
-      }
-		}
-		else{
+		if((curr_time - ptr->ID) > micro_timeout){
 			tmp = ptr;
 			ptr = ptr->next;
-		}
 
+			delete_member(members, tmp);
+		}else {
+			ptr = ptr->next;
+		}
 	}
 }
 

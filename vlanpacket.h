@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <pthread.h>
 
 #define PACKET_TYPE_DATA 0xABCD
 #define PACKET_TYPE_LEAVE 0xAB01
@@ -38,6 +39,13 @@ struct linkstate {
   uint64_t ID;
   struct linkstate *next;
 };
+
+//Membership List
+struct membership_list {
+	struct linkstate* list;
+	int size;
+	pthread_mutex_t lock;
+}
 
 struct header {
   uint16_t packet_type;
