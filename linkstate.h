@@ -24,7 +24,11 @@ struct peerlist {
  */
 struct peerlist* parse_file(char* input_file, struct config* conf); 
 
-void delete_expired_members(struct linkstate* list, int link_timeout);
+void delete_member(struct membership_list* members, struct linkstate* link);
+
+void delete_expired_members(struct membership_list* members, int link_timeout);
+
+void add_member(struct membership_list* members, struct linkstate* link);
 
 /* Checks membership list for the next peer to send to
  * If the destination is directly connected, send to neighbor
@@ -38,5 +42,8 @@ void delete_expired_members(struct linkstate* list, int link_timeout);
 int get_peer_route(struct proxy_addr* dest);
 
 int send_linkstate(int socket_fd, struct linkstate* l_state);
+
+struct linkstate* in_member_list(struct membership_list* members, struct proxy_addr* local, struct proxy_addr* remote);
+
 
 #endif
