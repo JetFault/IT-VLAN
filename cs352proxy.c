@@ -25,7 +25,7 @@
 #define PROBE_SCHED 1
 
 struct config* conf;
-struct linkstate* list;
+struct membership_list* member_list;
 int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
@@ -35,23 +35,28 @@ char* TAP_MAC;
 
 
 void* poll_membership_list(void* peers){
-	int time_passed = 0;
+	int timeout_passed = 0;
+	int timeperiod_passed = 0;
+
 	while(1) {
     /* Every LinkTimeout seconds */
     if(time_passed >= conf->linktimeout) {
-      /* Send linkstate*/ 
-
-
       /* Delete expired members */
-      delete_expired_members(list, conf->linktimeout);
-      time_passed = 0;
+      delete_expired_members(member_list, conf->linktimeout);
+      timeout_passed = 0;
     }
+		if(timeperiod_passed == conf->linkperiod){
 
+      /* Send linkstate*/ 
+			flood_linkstate(route_list, member_list->list);
+			timeperiod_passed = 0;
+		}
     /* Send Probes every 1 sec */
 
 
 		sleep(PROBE_SCHED);
-    time_passed++;
+    timeout_passed++;
+		timeperiod_passed++;
 	}
 }
 
