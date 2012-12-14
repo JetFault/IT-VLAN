@@ -16,33 +16,33 @@
         + Sending probe request 
         + Waiting for the probe response
         + Recording the difference in time
-  - Maintaining the Membership list.
-    + Every linkPeriod seconds a proxy will send a link state packet, which contains all the
-        link-state records it owns, to all connected proxies. 
-      - These linkstate records are flooded throughout the system.
-    + If a proxy receives a leave packet
-      - If it has not seen this ID yet
-        + It should:
-          - Send a leave message to all the connected proxies
-          - Close all the sockets for that peer
-          - Then exit. (This means nothing to me...?)
-      - Proxies receiving a leave packet will remove that particular proxy from the membership list. 
-    + The membership list should be periodically scanned to remove stale entries.
-      - When no link state record for a proxy has been received for linkTimeout seconds.
+			- Maintaining the Membership list.
+				+ Every linkPeriod seconds a proxy will send a link state packet, which contains all the
+				link-state records it owns, to all connected proxies. 
+				- These linkstate records are flooded throughout the system.
+				+ If a proxy receives a leave packet
+				- If it has not seen this ID yet
+				+ It should:
+				- Send a leave message to all the connected proxies
+	- Close all the sockets for that peer
+- Then exit. (This means nothing to me...?)
+	- Proxies receiving a leave packet will remove that particular proxy from the membership list. 
+	+ The membership list should be periodically scanned to remove stale entries.
+	- When no link state record for a proxy has been received for linkTimeout seconds.
 
-  - Managing the Link-State Graph:
-    + Directed, weighted graph representing the state of the network.
-    + A link-state record is an edge. 
-    + Nodes are identified using the layer-2 MAC address, either through the tapX or eth0 interface.
-    + The weight of each edge is the Round-Trip-Time (RTT), thus lower valued edges are better.
-    + The direction of each edge is obtained by the local/remote part of the link-state record
-      - The edge begins at the local side and ends at the remote side. 
-    + In order to build and maintain the graph, each proxy must perform the following: 
-      - Create link state records from socket connections. 
-        + That is, for each connected peer,
-          - Every LinkPeriod seconds the proxy creates a new link state record.
-          - The RTT field is created from measurements of RTT packets.
-            + If the proxy does not have the RTT working, it should set all the RTT to a value of 1. 
+	- Managing the Link-State Graph:
+	+ Directed, weighted graph representing the state of the network.
+	+ A link-state record is an edge. 
+	+ Nodes are identified using the layer-2 MAC address, either through the tapX or eth0 interface.
+	+ The weight of each edge is the Round-Trip-Time (RTT), thus lower valued edges are better.
+	+ The direction of each edge is obtained by the local/remote part of the link-state record
+	- The edge begins at the local side and ends at the remote side. 
+	+ In order to build and maintain the graph, each proxy must perform the following: 
+	- Create link state records from socket connections. 
+	+ That is, for each connected peer,
+	- Every LinkPeriod seconds the proxy creates a new link state record.
+	- The RTT field is created from measurements of RTT packets.
+	+ If the proxy does not have the RTT working, it should set all the RTT to a value of 1. 
           - Forward locally generated and records from other proxies to all your neighbors.
           - If you maintain the graph as an edge set, send all the valid edges in the link state packet. 
           - Remove duplicates and time-out link state records. 

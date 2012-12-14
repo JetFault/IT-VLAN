@@ -183,11 +183,52 @@ int is_seen(struct last_seen* list, void* packet, struct proxy_addr* source, str
 
 		return -1;
 
+}
+
+void send_probes(struct routes* route_list, struct probereq_list* probe_list){
+	
+	struct probereq_packet* probereq_pack = malloc(sizeof(struct probereq_packet));
+	probreq_pack->ID = current_time();
+	
+	struct probereq_list* tmp;
+
+	struct routes* ptr = route_list;
+
+	while(ptr != NULL){
+		
+		
+		if(send_to(ptr->remote, (void*)probereq_pack,ptr->socket_fd) == -1){
+			fprintf(stderr, "Could not send probe");
+			exit(EXIT_FAILURE);
+		}
+
+		struct probereq_list* new_probe = malloc(sizeof(struct probereq_list));
+		new_probe->link = ptr->link;
+		new_probe->ID = probe;
+
+		tmp = probe_list;
+		new_probe->next = tmp;
+		probe_list = new_probe;
+		
+		ptr = ptr->next;
+	}
 
 }
 
+uint32_t receive_probe(struct membership_list* member_list, struct routes* route_list, struct probereq_list* probe_list, struct proberes_packet* proberes_pack, unsigned int end_time, struct linkstate* link){
+	
+	struct probereq_list* ptr = probe_list;
 
+	while(ptr != NULL){
+		if(ptr->link == link && proberes_pack->ID == ){
+			
+		}
+		uint32_t diff = end_time -
+	
+	}
+	
 
+}
 /* Send a linkstate packet to a socket
  * param socket_fd: socket to send to
  * param membership list: list of linkstates to create

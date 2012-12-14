@@ -247,24 +247,39 @@ void* start_tcp_listener(void* socket_arg) {
 
 void connect_to_peers(struct peerlist* plist) {
   struct peerlist* ptr = plist;
-
+	struct peerlist* tmp;
+	
   while(ptr != NULL) {
     int connection_fd = connect_to(ptr->hostname, ptr->port);
 
     /* Send 1 record linkstate packet,
      * with RTT of 1 and ID of current time */
     struct linkstate * self_lstate = malloc(sizeof(struct linkstate));
-    linkstate->local = ;
-    linkstate->local = ;
-    linkstate->local = 1;
-    linkstate->local = current_time();
-    linkstate->local = NULL;
+    linkstate->ID = current_time();
+		linkstate->avg_RTT = 1;
+		linkstate->next = NULL;
 
-    /* Accept 1 record linkstate packet of end peer */
+		struct proxy_addr* local = malloc(sizeof(struct proxy_addr));
+		struct proxy_addr* remote = malloc(sizeof(struct proxy_addr));
+		
+		if(get_local_info(connection_fd, local) == -1){
+			fprintf(stderr, "Could not get local info. Error Code: %d", connection_fd);
+      exit(EXIT_FAILURE);
+		}
+		if(get_remote_info(connection_fd, remote == -1)){
+			fprintf(stderr, "Could not get remote info. Error Code: %d", connection_fd);
+      exit(EXIT_FAILURE);
+		}
+		linkstate->local = local;
+		linkstate->remote = remote;
 
 
-    
+    /* Send 1 record linkstate packet of end peer */
+		send_to(NULL,(void*)self_lstate,connection_fd);
+
+   	tmp = ptr;
     ptr = ptr->next;
+		free(tmp);
   }
 }
 

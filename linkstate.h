@@ -33,15 +33,14 @@ struct membership_list {
 }
 
 struct probereq_list {
-  struct proxy_addr remote;
+  struct linkstate* link;
   uint64_t ID;
-  double start_time;
   struct probereq_list* next;
 };
 
 struct routes {
   int socket_fd;
-  struct proxy_addr remote;
+  struct linkstate* link;
 };
 
 /* Parse the config file and put results in conf
@@ -58,8 +57,6 @@ void delete_member(struct membership_list* members, struct linkstate* link);
 void delete_expired_members(struct membership_list* members, int link_timeout);
 
 void add_member(struct membership_list* members, struct linkstate* link);
-
-void add_members(struct membership_list* members, struct linkstate* link_list);
 
 struct linkstate* in_member_list(struct membership_list* members,
     struct proxy_addr* local, struct proxy_addr* remote);
@@ -86,6 +83,6 @@ int is_seen(struct last_seen* list, void* packet, struct proxy_addr* source, str
 
 void send_probes(struct routes* route_list, struct probereq_list* probe_list);
 
-uint32_t receive_probe(struct membership_list* member_list, struct proberes_packet* proberes_pack);
+uint32_t receive_probe(struct membership_list* member_list, ,struct probereq_list* probe_list, struct proberes_packet* proberes_pack, unsigned int end_time, struct linkstate* link);
 
 #endif
