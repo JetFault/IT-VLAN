@@ -51,11 +51,11 @@ void* poll_membership_list(void* peers){
     }
 		if(timeperiod_passed == conf->linkperiod){
       /* Send linkstate*/ 
-			flood_linkstate(route_list, member_list->list);
+//			flood_linkstate(route_list, member_list->list);
 			timeperiod_passed = 0;
 		}
     /* Send Probes every 1 sec */
-    send_probes(route_list, probe_list);
+    //send_probes(route_list, probe_list);
 
 		sleep(PROBE_SCHED);
     timeout_passed++;
@@ -78,7 +78,7 @@ int packet_ret_logic(void* packet, int socket_fd) {
       
     } else {
       struct proxy_addr src, dest, local;
-      find_tap_dest(data_pack->datagram, &src, &dest);
+      find_tap_dest(data_pack->datagram, &src, &dest, NULL);
       get_local_info(socket_fd, &local);
 
       //If I am the destination
@@ -88,7 +88,6 @@ int packet_ret_logic(void* packet, int socket_fd) {
       }
       //I'm not the destination
       else {
-        /* Add to seen list TODO */
         broadcast(route_list, packet);
         
       }
@@ -105,15 +104,15 @@ int packet_ret_logic(void* packet, int socket_fd) {
 
   } else if(pack_type == PACKET_TYPE_LINKSTATE) {
     struct linkstate_packet* lstate_pack = (struct linkstate_packet*)packet;
-    add_members(member_list, lstate_pack->linkstate_head);
+    add_member(member_list, lstate_pack->linkstate_head);
 
   } else if(pack_type == PACKET_TYPE_PROBEREQ) {
     /* Send probe res */
-    send_to(NULL, (struct proberes_packet*)packet, socket_fd);
+    send_to((struct proberes_packet*)packet, socket_fd);
 
   } else if(pack_type == PACKET_TYPE_PROBERES) {
     /* update RTT based on probe res time */
-    receive_probe(member_list, (struct proberes_packet*)packet);
+    //receive_probe(member_list, (struct proberes_packet*)packet);
 
   } else {
     fprintf(stderr, "Wrong packet type: %u\n", pack_type);
@@ -153,7 +152,7 @@ void* run_tap_thread(void* arg) {
     struct proxy_addr src, dest;
 
 
-    ret_status = find_tap_dest(buff_tap_datagram, &src, &dest);
+    ret_status = find_tap_dest(buff_tap_datagram, &src, &dest, NULL);
     if(ret_status == -1) {
       fprintf(stderr, "Error decoding tap datagram source/destination\n");
       free(buff_tap_datagram);
@@ -202,7 +201,7 @@ void* run_accept_thread(void* connection_fd) {
 			/* Manipulate dest to include your mac address TODO  getlocalinfo */
 			struct proxy_addr dest;
 			get_local_info(remote_fd, &dest);
-			link_pack->linkstate_head.dest = dest;
+			link_pack->linkstate_head->remote= dest;
 
 			/* Reverse local & dest and add to membership list  TODO */
 			struct linkstate* link = malloc(sizeof(struct linkstate));
@@ -213,15 +212,11 @@ void* run_accept_thread(void* connection_fd) {
 			link->next = NULL;
 
       /* Add client to Membership list */
-<<<<<<< Updated upstream
       add_member(member_list, link);
-=======
-      add_member(member_list, ((struct linkstate_packet *)pack)->linkstate_head);
->>>>>>> Stashed changes
 
 			/* Send the unreversed but manipulated lstate pack back, but change source to you TODO */
-			link_pack->source = link_pack->linkstate_head.local;
-			send_linkstate(remote_fd,link_pack);
+			link_pack->source = link_pack->linkstate_head->local;
+			send_to(link_pack, remote_fd);
 
     } 
     /* Not single record linkstate, drop client */
@@ -304,28 +299,27 @@ void connect_to_peers(struct peerlist* plist) {
 
     /* Send 1 record linkstate packet,
      * with RTT of 1 and ID of current time */
-    struct linkstate * self_lstate = malloc(sizeof(struct linkstate));
-    linkstate->ID = current_time();
-		linkstate->avg_RTT = 1;
-		linkstate->next = NULL;
+    struct linkstate self_lstate;
+    self_lstate.ID = current_time();
+		self_lstate.avg_RTT = 1;
+		self_lstate.next = NULL;
 
-		struct proxy_addr* local = malloc(sizeof(struct proxy_addr));
-		struct proxy_addr* remote = malloc(sizeof(struct proxy_addr));
+		struct proxy_addr local, remote;
 		
-		if(get_local_info(connection_fd, local) == -1){
+		if(get_local_info(connection_fd, &local) == -1){
 			fprintf(stderr, "Could not get local info. Error Code: %d", connection_fd);
       exit(EXIT_FAILURE);
 		}
-		if(get_remote_info(connection_fd, remote == -1)){
+		if(get_remote_info(connection_fd, &remote) == -1){
 			fprintf(stderr, "Could not get remote info. Error Code: %d", connection_fd);
       exit(EXIT_FAILURE);
 		}
-		linkstate->local = local;
-		linkstate->remote = remote;
+		self_lstate.local = local;
+		self_lstate.remote = remote;
 
 
     /* Send 1 record linkstate packet of end peer */
-		send_to(NULL,(void*)self_lstate,connection_fd);
+		send_to((void*)&self_lstate,connection_fd);
 
    	tmp = ptr;
     ptr = ptr->next;
@@ -333,59 +327,6 @@ void connect_to_peers(struct peerlist* plist) {
   }
 }
 
-void* run_tcp_thread(void* socket_arg) {
-	unsigned short int h_type = 0;
-	unsigned short int h_size = 0;
-	char* buff_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
-	char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
-
-	int socket_fd = (int)socket_arg;
-
-	for(;;)
-	{
-		//Get Type
-		socket_read(socket_fd, (char*)&h_type, HEADER_TYPE_SIZE);
-
-		//Correct packet type
-		if(ntohs(h_type) == 0xABCD) {
-
-			/* READ FROM NETWORK */
-
-			//Get length
-			socket_read(socket_fd, (char *)&h_size, HEADER_SIZE_SIZE);
-			unsigned short int packet_length = ntohs(h_size);
-
-			//Get Datagram
-			socket_read(socket_fd, buff_datagram, packet_length);
-
-			/* END READ FROM NETWORK */
-
-
-
-			/* WRITE TO TAP */
-
-			socket_write(tap_fd, buff_datagram, packet_length);
-
-			/* END WRITE TO TAP */
-
-
-
-			/* READ FROM THE TAP */
-
-			unsigned short int data_size = 0;
-			data_size = socket_read(tap_fd, buff_tap_datagram, DATAGRAM_SIZE);
-
-			/* Write to Network */
-			h_type = htons(0xABCD);
-			h_size = htons(data_size);
-			socket_write(socket_fd, (char *)&h_type, HEADER_TYPE_SIZE);
-			socket_write(socket_fd, (char *)&h_size, HEADER_SIZE_SIZE);
-			socket_write(socket_fd, buff_tap_datagram, data_size);
-
-			/* END READ FROM THE TAP */
-		}
-	}
-}
 
 /**
  * Usage:
@@ -408,7 +349,8 @@ int main(int argc, char** argv) {
 	}
 
   /* Parse config file */
-  struct peerlist* peers = parse_file(argv[1], conf);
+  struct peerlist* peers;
+  parse_file(argv[1], conf, peers);
 
   /* Run TCP Server Thread */
 	pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
@@ -427,9 +369,9 @@ int main(int argc, char** argv) {
   connect_to_peers(peers);
 
   /* Wait for TCP and TAP and Polling thread */
-  (void) pthread_join(tcp_thread, NULL);
+  pthread_join(tcp_thread, NULL);
   if(conf->tap !=NULL){
-  	(void) pthread_join(tap_thread, NULL);
+  	pthread_join(tap_thread, NULL);
   }
   pthread_join(poll_thread,NULL);
 
