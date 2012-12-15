@@ -53,7 +53,7 @@ struct route {
   int socket_fd;
   struct linkstate* link;
   struct route* next;
-}
+};
 
 /* Parse the config file and put results in conf
  * param input_file: input file
@@ -107,9 +107,9 @@ int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack){
 
 int destroy_vlan(struct membership_list* member_list, struct routes* routes_list, 
     struct probereq_list* probe_list);
-
+/*
 int send_probes(struct routes* route_list, struct probereq_list* probe_list);
 
 uint32_t receive_probe(struct membership_list* member_list ,struct probereq_list* probe_list, struct proberes_packet* proberes_pack, unsigned int end_time, struct linkstate* link);
-
+*/
 #endif
