@@ -17,6 +17,22 @@ int allocate_tunnel(char *dev, int flags, char* local_mac);
  * param remote: remote struct proxy_addr address
  * return: -1 on failure, 0 on success, 1 on ARP
  */
-int find_tap_dest(char* datagram, struct proxy_addr *src, struct proxy_addr *dest);
+int find_tap_dest(char* datagram, struct proxy_addr *src, struct proxy_addr *dest, uint16_t* id);
+
+int send_to_tap(int tap_fd, char* datagram);
+
+/* Read from a tap file descriptor, to a buffer, of a certain size
+ * param socket_fd: tap file descriptor
+ * param buffer: Buffer address to read into
+ * param length: number of bytes to read
+ */
+ssize_t tap_read(int socket_fd, char** buffer, size_t length);
+
+/* Write to a tap file descriptor, from a buffer, of a certain size
+ * param socket_fd: tap file descriptor
+ * param buffer: Buffer to write
+ * param length: number of bytes to write
+ */
+ssize_t tap_write(int socket_fd, char* buffer, size_t length);
 
 #endif

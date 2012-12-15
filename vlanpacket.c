@@ -10,7 +10,7 @@
 
 #include "vlanpacket.h"
 
-double current_time() {
+unsigned int current_time() {
   struct timeval  tv;
   gettimeofday(&tv, NULL);
 
@@ -89,7 +89,9 @@ uint16_t read_packet(int socket_fd, void** packet_struct) {
   uint16_t pack_type = *((uint16_t*)header);
   uint16_t pack_length = *( ((uint16_t*)header) + 1 );
 
-  struct header head = { .packet_type = pack_type, .packet_length = pack_length };
+  struct header head;
+  head.packet_type = pack_type;
+  head.packet_length = pack_length;
 
   /* Read from socket to get the datagram/fields */
   char* datagram = malloc(pack_length);
@@ -102,14 +104,16 @@ uint16_t read_packet(int socket_fd, void** packet_struct) {
 }
 
 /* Send the packet to the destination
- * param dest: struct proxy_addr of the destination
  * param packet: a packet typecasted as void* to send
- * param socket_fd: optional, if this is not 0, send directly
- *    to that socket, ignoring the dest parameter
- * return: -1 on failure, 0 on success
+ * param socket_fd: send directly to that socket
+ * return: bytes sent, -1 on failure
  */
-int send_to(struct proxy_addr* dest, void* packet, int socket_fd) {
-
+ssize_t send_to(void* packet, int socket_fd) {
+  char* buffer;
+  size_t size = serialize(packet, &buffer);
+  ssize_t size_written = socket_write(socket_fd, buffer, size);
+  free(buffer);
+  return size_written;
 };
 
 
@@ -247,7 +251,7 @@ uint16_t deserialize(struct header* head, char *buffer, void** packet_struct) {
  * param buffer: location to malloc new char* buffer
  * return: size of buffer
  */
-size_t serialize(uint16_t packet_type, void* packet, char** buffer) {
+size_t serialize(void* packet, char** buffer) {
 
   size_t num_bytes;
   
@@ -258,7 +262,8 @@ size_t serialize(uint16_t packet_type, void* packet, char** buffer) {
   /* Bitwise magic to set packet fields */
   char* curr_ptr = *buffer;
   uint16_t* pack_type = (uint16_t*) curr_ptr;
-  *pack_type = packet_type;
+  *pack_type = ((struct data_packet *)packet)->head.packet_type;
+  uint16_t packet_type = *pack_type;
   uint16_t* pack_len = (uint16_t*) (curr_ptr + sizeof(uint16_t));
   *pack_len = ((struct data_packet *)packet)->head.packet_length;
   curr_ptr = curr_ptr + (sizeof(struct header));
@@ -355,7 +360,7 @@ ssize_t read_wrapper(int socket_fd, char* buffer, size_t length) {
   ssize_t nread = 0;
   ssize_t bytes_read = 0;
   while(length > 0) {
-    nread = read(socket_fd, buffer, length);
+    nread = recv(socket_fd, buffer, length, 0);
     if (nread == -1) {
       return nread;
     }
@@ -363,6 +368,20 @@ ssize_t read_wrapper(int socket_fd, char* buffer, size_t length) {
     length -= nread;
   }
   return bytes_read;
+}
+
+ssize_t write_wrapper(int socket_fd, char* buffer, size_t length) {
+  ssize_t nwrite = 0;
+  ssize_t bytes_written = 0;
+  while(length > 0) {
+    nwrite = send(socket_fd, buffer, length, MSG_NOSIGNAL);
+    if (nwrite == -1) {
+      return nwrite;
+    }
+    bytes_written += nwrite;
+    length -= nwrite;
+  }
+  return bytes_written;
 }
 
 ssize_t socket_read(int socket_fd, char** buffer, size_t length) {
@@ -384,21 +403,14 @@ ssize_t socket_read(int socket_fd, char** buffer, size_t length) {
 /* Write to a file descriptor, from a buffer, of a certain size
  * param socket_fd: socket file descriptor
  * param buffer: Buffer to write
- * param length: number of bytes to write
+ * param length: number of bytes to write, -1 on error
  */
 ssize_t socket_write(int socket_fd, char* buffer, size_t length) {
   ssize_t nwrite;
 
-/*
-	if (len + 1 > DATAGRAM_SIZE) {
-		fprintf(stderr,
-				"Datagram too big sending anyway.");
-	}
-*/
-
-  nwrite = write(socket_fd, buffer, length);
+  nwrite = write_wrapper(socket_fd, buffer, length);
 	if (nwrite != length) {
-		fprintf(stderr, "Partial or Failed write.\n");
+		fprintf(stderr, "Failed write.\n");
     return -1;
 	}
 

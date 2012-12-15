@@ -68,8 +68,10 @@ struct peerlist* parse_file(char* input_file,struct config* conf){
 void add_member(struct membership_list* members, struct linkstate* link){
 	
 	pthread_mutex_lock(&(members->lock));
-	
-	if(struct linkstate* temp = in_member_list(members,link->local,link->remote)){
+
+	struct linkstate* temp = in_member_list(members, &(link->local), &(link->remote));
+
+	if(temp){
 		if(temp->ID > link->ID){
 			delete_member(members, link);
 		}else{
@@ -96,7 +98,7 @@ struct linkstate* in_member_list(struct membership_list* members,
 	struct linkstate* found = NULL;
 
 	while(ptr != NULL){
-		if((compare_proxy_addr(remote, ptr->remote) == 0) && (compare_proxy_addr(local,ptr->local) == 0)){		
+		if((compare_proxy_addr(remote, &(ptr->remote)) == 0) && (compare_proxy_addr(local, &(ptr->local)) == 0)){		
 			found = ptr;
 			break;
 		}
@@ -164,29 +166,28 @@ void delete_expired_members(struct membership_list* members, int link_timeout) {
 	}
 }
 
+/* */
+int compare_last_seen(struct last_seen* seen1, struct last_seen* seen2) {
+  
+}
+
 /* Helper function to see if you have seen the packet
  *return: 0 if it has seen it, -1 if it has not
  */
-int is_seen(struct last_seen_list* list, void* packet){
-		pthread_mutex_lock(&(list->lock));
+int is_seen(struct last_seen_list* list, struct last_seen* seen_item){
 
-		struct last_seen* ptr, tmp = list->head;
+		struct last_seen* ptr = list->head;
+    struct last_seen* tmp = list->head;
 		struct last_seen* prev;
-		struct data_packet pack = (struct data_packet*)packet;
-		struct proxy_addr* source = malloc(sizeof(struct proxy_addr));
-		struct proxy_addr* dest = malloc(sizeof(struct proxy_addr));
 	
 		int saw = -1;
-		find_tap_dest(pack->datagram, source, dest);
 
 		while(ptr != NULL){
-			if(((compare_proxy_addr(list->source, source)) == 0) && (compare_proxy_addr(list->dest, dest) == 0)){
-				if(pack->ID == ptr->ID){
-					saw = 0;
-					break;
-				}
-			}
-			if(current_time() - ptr->time> SEEN_LIMIT){
+      if(compare_last_seen(seen_item, ptr) ==0) {
+        saw = 0;
+        break;
+      }
+			if(current_time() - ptr->time_received > SEEN_LIMIT){
 				if(prev == NULL){
 					tmp = ptr;
 					list->head = ptr->next;
@@ -204,31 +205,51 @@ int is_seen(struct last_seen_list* list, void* packet){
 			}
 		}
 	
-		pthread_mutex_unlock(&(list->lock));
 		return saw;
 
 }
 
-int add_seen(struct last_seen_list* list, struct data_packet* packet){
+/* Add to seen list if not in list. If in list return 0. Else return 1 */
+int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack){
+  struct proxy_addr* src = malloc(sizeof(struct proxy_addr));
+  struct proxy_addr* dest = malloc(sizeof(struct proxy_addr));
+  uint16_t id;
 
+  find_tap_dest(data_pack->datagram, src, dest, &id);
+
+  struct last_seen* seen_item = malloc(sizeof(struct last_seen));
+  seen_item->ID = id;
+  seen_item->packet_type = data_pack->head.packet_type;
+  seen_item->source = src;
+  seen_item->dest = dest;
+  seen_item->time_received = current_time();
+
+
+  pthread_mutex_lock(&(seen_list->lock));
+
+  //If seen already return 0
+  if(is_seen(seen_list, seen_item) == 0) {
+    return 0;
+  }
+
+  seen_item->next = seen_list->head;
+  seen_list->head = seen_item;
+  pthread_mutex_unlock(&(seen_list->lock));
+
+  return 1;
 
 }
 
 void send_probes(struct routes* route_list, struct probereq_list* probe_list){
 	
 	struct probereq_packet* probereq_pack = malloc(sizeof(struct probereq_packet));
-	probreq_pack->ID = current_time();
+	probereq_pack->ID = current_time();
 	
-	struct probereq_list* tmp;
-
 	struct routes* ptr = route_list;
 
 	while(ptr != NULL){
 		
-		
 		if(send_to(ptr->remote, (void*)probereq_pack,ptr->socket_fd) == -1){
-			fprintf(stderr, "Could not send probe");
-			exit(EXIT_FAILURE);
 		}
 
 		struct probereq_list* new_probe = malloc(sizeof(struct probereq_list));

@@ -25,10 +25,10 @@ struct last_seen_list{
 
 struct last_seen {
 	uint16_t ID;
-	double time;
 	uint16_t packet_type;
 	struct proxy_addr* source;
 	struct proxy_addr* dest;
+  int time_received;
 	struct last_seen* next;
 };
 
@@ -46,9 +46,14 @@ struct probereq_list {
 };
 
 struct routes {
+  struct route* head;
+};
+
+struct route {
   int socket_fd;
   struct linkstate* link;
-};
+  struct route* next;
+}
 
 /* Parse the config file and put results in conf
  * param input_file: input file
@@ -79,6 +84,18 @@ struct linkstate* in_member_list(struct membership_list* members,
  */
 int get_peer_route(struct proxy_addr* dest);
 
+struct route* get_route_socket(struct routes* route_list, int socket_fd);
+struct route* get_route_link(struct routes* route_list, struct linkstate* link);
+
+/* Close peer route connections and remove from route_list
+ *    peer_route param is optional, if NULL clears entire list
+ * param route_list: routes struct
+ * param peer_route: if not NULL, delete that specific route.
+ *                   if NULL, delete all routes
+ */
+int close_peer_route(struct membership_list* member_list, struct routes* route_list,
+      struct route* peer_route);
+
 /*
  * return: 0 for okay, -1 for ERROR
  */
@@ -86,10 +103,10 @@ int broadcast(struct routes* route_list, void* packet);
 
 int send_linkstate(int socket_fd, struct linkstate* l_state);
 
-/* Helper function to see if you have seen the packet in last 5 sec
- *return: 0 if it has seen it, -1 if it has not
- */
-int is_seen(struct last_seen* list, void* packet, struct proxy_addr* source, struct proxy_addr* dest);
+int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack){
+
+int destroy_vlan(struct membership_list* member_list, struct routes* routes_list, 
+    struct probereq_list* probe_list);
 
 void send_probes(struct routes* route_list, struct probereq_list* probe_list);
 

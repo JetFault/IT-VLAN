@@ -70,9 +70,10 @@ int allocate_tunnel(char *dev, int flags, char* local_mac) {
  * param packet: packet buffer to decipher
  * param local: local struct proxy_addr address
  * param remote: remote struct proxy_addr address
+ * param id: address of where to store the ID
  * return: -1 on failure, 0 on success, 1 on ARP
  */
-int find_tap_dest(char* packet, struct proxy_addr *src, struct proxy_addr *dest) {
+int find_tap_dest(char* packet, struct proxy_addr *src, struct proxy_addr *dest, uint16_t* id) {
 
   struct ether_header *ether_packet_p;  /* Pointer to an Ethernet header */
   struct iphdr *ip_packet_p;            /* Pointer to an IP header  */
@@ -126,6 +127,9 @@ int find_tap_dest(char* packet, struct proxy_addr *src, struct proxy_addr *dest)
 
       src->ip  = ip_source_addr;
       dest->ip = ip_dest_addr;
+      if(id != NULL) {
+        *id = ntohs(ip_packet_p->id);
+      }
       
       #if DEBUG
       printf("got IP packet, destination %d.%d.%d.%d source %d.%d.%d.%d\n",
@@ -150,3 +154,65 @@ int find_tap_dest(char* packet, struct proxy_addr *src, struct proxy_addr *dest)
   }
   return 1;
 }
+
+ssize_t tap_read_wrapper(int socket_fd, char* buffer, size_t length) {
+  ssize_t nread = 0;
+  ssize_t bytes_read = 0;
+  while(length > 0) {
+    nread = read(socket_fd, buffer, length);
+    if (nread == -1) {
+      return nread;
+    }
+    bytes_read += nread;
+    length -= nread;
+  }
+  return bytes_read;
+}
+
+ssize_t tap_write_wrapper(int socket_fd, char* buffer, size_t length) {
+  ssize_t nwrite = 0;
+  ssize_t bytes_written = 0;
+  while(length > 0) {
+    nwrite = write(socket_fd, buffer, length);
+    if (nwrite == -1) {
+      return nwrite;
+    }
+    bytes_written += nwrite;
+    length -= nwrite;
+  }
+  return bytes_written;
+}
+
+ssize_t tap_read(int socket_fd, char** buffer, size_t length) {
+	ssize_t nread;
+
+	nread = tap_read_wrapper(socket_fd, *buffer, length);
+	if (nread == -1) {
+		fprintf(stderr, "Read failed.\n");
+    return -1;
+	}
+
+#if DEBUG
+	printf("Received %d bytes\n", nread);
+#endif
+	
+	return nread;
+}
+
+/* Write to a file descriptor, from a buffer, of a certain size
+ * param socket_fd: socket file descriptor
+ * param buffer: Buffer to write
+ * param length: number of bytes to write
+ */
+ssize_t tap_write(int socket_fd, char* buffer, size_t length) {
+  ssize_t nwrite;
+
+  nwrite = tap_write_wrapper(socket_fd, buffer, length);
+	if (nwrite != length) {
+		fprintf(stderr, "Failed write.\n");
+    return -1;
+	}
+
+	return nwrite;
+}
+

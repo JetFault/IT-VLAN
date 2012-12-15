@@ -87,7 +87,7 @@ struct proberes_packet {
 /* Get the current time in milliseconds
  * return: double of current time in milliseconds
  */
-double current_time();
+unsigned int current_time();
 
 /* Read from the socket fd to get a packet
  * param socket_fd: Socket fd to read from
@@ -97,13 +97,11 @@ double current_time();
 uint16_t read_packet(int socket_fd, void** packet_struct);
 
 /* Send the packet to the destination
- * param dest: struct proxy_addr of the destination
  * param packet: a packet typecasted as void* to send
- * param socket_fd: optional, if this is not 0, send directly
- *    to that socket, ignoring the dest parameter
+ * param socket_fd: send to socket
  * return: -1 on failure, 0 on success
  */
-int send_to(struct proxy_addr* dest, void* packet, int socket_fd);
+int send_to(void* packet, int socket_fd);
 
 /* Deserialize a buffer sent over the network to a packet struct
  * param buffer: the buffer to deserialize
@@ -113,12 +111,11 @@ int send_to(struct proxy_addr* dest, void* packet, int socket_fd);
 uint16_t deserialize(struct header* head, char *buffer, void** packet_struct);
 
 /* Serlialize a packet struct into a char* buffer to send over network
- * param packet_type: the packet_type, defined as PACKET_TYPE_*
  * param packet: the struct for the packet_type typecasted as void*
  * param buffer: location to malloc new char* buffer
  * return: size of buffer
  */
-size_t serialize(uint16_t packet_type, void* packet, char** buffer);
+size_t serialize(void* packet, char** buffer);
 
 
 /* Read from a file descriptor, to a buffer, of a certain size

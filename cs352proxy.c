@@ -32,6 +32,8 @@ int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
 
+int is_alive = 1;
+
 char* TAP_NAME;
 char* TAP_MAC;
 
@@ -67,33 +69,58 @@ void* poll_membership_list(void* peers){
  */
 int packet_ret_logic(void* packet, int socket_fd) {
   uint16_t pack_type = ((struct data_packet*)packet)->head.packet_type;
+
   if(pack_type == PACKET_TYPE_DATA) {
     struct data_packet* data_pack = (struct data_packet*)packet;
 
-    struct proxy_addr src, dest;
-    find_tap_dest(data_pack->datagram, &src, &dest);
+    /* Already seen this packet */
+    if(add_seen(seen_list, packet) == 0) {
+      
+    } else {
+      struct proxy_addr src, dest, local;
+      find_tap_dest(data_pack->datagram, &src, &dest);
+      get_local_info(socket_fd, &local);
 
-    
+      //If I am the destination
+      if(compare_proxy_addr(&dest, &local) == 0) {
+        /* Send to TAP */
+        send_to_tap(tap_fd, data_pack->datagram);
+      }
+      //I'm not the destination
+      else {
+        /* Add to seen list TODO */
+        broadcast(route_list, packet);
+        
+      }
+    }
     
   } else if(pack_type == PACKET_TYPE_LEAVE) {
-
+    broadcast(route_list, packet);
+    struct route* peer_route = get_route_socket(route_list, socket_fd);
+    close_peer_route(member_list, route_list, peer_route);
 
   } else if(pack_type == PACKET_TYPE_QUIT) {
-    
+    broadcast(route_list, packet);
+    is_alive = 0;
 
   } else if(pack_type == PACKET_TYPE_LINKSTATE) {
     struct linkstate_packet* lstate_pack = (struct linkstate_packet*)packet;
     add_members(member_list, lstate_pack->linkstate_head);
+
   } else if(pack_type == PACKET_TYPE_PROBEREQ) {
     /* Send probe res */
     send_to(NULL, (struct proberes_packet*)packet, socket_fd);
+
   } else if(pack_type == PACKET_TYPE_PROBERES) {
     /* update RTT based on probe res time */
     receive_probe(member_list, (struct proberes_packet*)packet);
+
   } else {
     fprintf(stderr, "Wrong packet type: %u\n", pack_type);
     return -1;
   }
+
+  return 1;
 }
 
 void* run_tap_thread(void* arg) {
@@ -105,7 +132,7 @@ void* run_tap_thread(void* arg) {
 
 	unsigned short int h_type = 0;
 	unsigned short int h_size = 0;
-	TAP_MAC = malloc(sizeof(char)*6);
+	TAP_MAC = malloc(sizeof(uint8_t)*6);
 
 	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PI, TAP_MAC)) < 0 ) {
 		perror("Opening tap interface failed! \n");
@@ -113,7 +140,7 @@ void* run_tap_thread(void* arg) {
 	}
 
   /* Keep reading from that socket for more datagrams */
-	while(1)
+	while(is_alive)
 	{
     char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
 
@@ -142,13 +169,14 @@ void* run_tap_thread(void* arg) {
     data_pack->datagram = buff_tap_datagram;
 
     /* Send the packet to the destination */
-    send_to(&dest, (void *)data_pack);
+    broadcast(route_list, (void*)data_pack);
 	 }
 }
 
 void* run_accept_thread(void* connection_fd) {
   int remote_fd = (int) connection_fd;
 
+  void* pack;
   struct proxy_addr local, remote;
 
   get_local_info(remote_fd, &local);
@@ -163,7 +191,6 @@ void* run_accept_thread(void* connection_fd) {
   else {
     /* Wait for single record link state packet*/
     /* Read from remote */
-    void* pack;
     uint16_t pack_type = read_packet(remote_fd, &pack);
 
     /* If Packet is a single record Linkstate */
@@ -186,7 +213,11 @@ void* run_accept_thread(void* connection_fd) {
 			link->next = NULL;
 
       /* Add client to Membership list */
+<<<<<<< Updated upstream
       add_member(member_list, link);
+=======
+      add_member(member_list, ((struct linkstate_packet *)pack)->linkstate_head);
+>>>>>>> Stashed changes
 
 			/* Send the unreversed but manipulated lstate pack back, but change source to you TODO */
 			link_pack->source = link_pack->linkstate_head.local;
@@ -201,16 +232,23 @@ void* run_accept_thread(void* connection_fd) {
 		
 	} 
 
-  /* Keep this connection alive */
-  while(1) {
+  /* Keep this connection alive
+   * If read or write return error, then connection has been closed */
+  while(is_alive) {
 
     /* Read from remote */
     /* Deserialize packet */
-      /* Part 2: Data packets get sent to local tap */
-
+    void* pack;
+    uint16_t pack_type = read_packet(remote_fd, &pack);
+    if(packet_ret_logic(pack, remote_fd) < 0) {
+      #if DEBUG
+      printf("Packet error. Connection might have closed.\n");
+      #endif
+      break;
+    }
   }
 
-};
+}
 
 void* start_tcp_listener(void* socket_arg) {
 	int socket_fd = (int)socket_arg;
@@ -242,7 +280,7 @@ void* start_tcp_listener(void* socket_arg) {
   }
 
   /* Accept connections, and spawn new threads for each connection */
-  while(1) {
+  while(is_alive) {
     pthread_t child;
 
     /* Accept */
