@@ -12,7 +12,6 @@
 #include <linux/if_tun.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-//#include <sys/select.h>
 #include <sys/time.h>
 
 #include "tap.h"
@@ -39,28 +38,28 @@ char* TAP_MAC;
 
 
 void* poll_membership_list(void* peers){
-	int timeout_passed = 0;
-	int timeperiod_passed = 0;
+  int timeout_passed = 0;
+  int timeperiod_passed = 0;
 
-	while(1) {
+  while(1) {
     /* Every LinkTimeout seconds */
     if(timeout_passed >= conf->linktimeout) {
       /* Delete expired members */
       delete_expired_members(member_list, conf->linktimeout);
       timeout_passed = 0;
     }
-		if(timeperiod_passed == conf->linkperiod){
+    if(timeperiod_passed == conf->linkperiod){
       /* Send linkstate*/ 
-//			flood_linkstate(route_list, member_list->list);
-			timeperiod_passed = 0;
-		}
+      //			flood_linkstate(route_list, member_list->list);
+      timeperiod_passed = 0;
+    }
     /* Send Probes every 1 sec */
     //send_probes(route_list, probe_list);
 
-		sleep(PROBE_SCHED);
+    sleep(PROBE_SCHED);
     timeout_passed++;
-		timeperiod_passed++;
-	}
+    timeperiod_passed++;
+  }
 }
 
 /* Packet retrieval logic
@@ -75,7 +74,7 @@ int packet_ret_logic(void* packet, int socket_fd) {
 
     /* Already seen this packet */
     if(add_seen(seen_list, packet) == 0) {
-      
+
     } else {
       struct proxy_addr src, dest, local;
       find_tap_dest(data_pack->datagram, &src, &dest, NULL);
@@ -89,10 +88,10 @@ int packet_ret_logic(void* packet, int socket_fd) {
       //I'm not the destination
       else {
         broadcast(route_list, packet);
-        
+
       }
     }
-    
+
   } else if(pack_type == PACKET_TYPE_LEAVE) {
     broadcast(route_list, packet);
     struct route* peer_route = get_route_socket(route_list, socket_fd);
@@ -123,27 +122,27 @@ int packet_ret_logic(void* packet, int socket_fd) {
 }
 
 void* run_tap_thread(void* arg) {
-	int socket_fd = (int)arg;
+  int socket_fd = (int)arg;
 
   int ret_status;
 
-	unsigned short int data_size = 0;
+  unsigned short int data_size = 0;
 
-	unsigned short int h_type = 0;
-	unsigned short int h_size = 0;
-	TAP_MAC = malloc(sizeof(uint8_t)*6);
+  unsigned short int h_type = 0;
+  unsigned short int h_size = 0;
+  TAP_MAC = malloc(sizeof(uint8_t)*6);
 
-	if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PI, TAP_MAC)) < 0 ) {
-		perror("Opening tap interface failed! \n");
-		exit(1);
-	}
+  if ( (tap_fd = allocate_tunnel(TAP_NAME, IFF_TAP | IFF_NO_PI, TAP_MAC)) < 0 ) {
+    perror("Opening tap interface failed! \n");
+    exit(1);
+  }
 
   /* Keep reading from that socket for more datagrams */
-	while(is_alive)
-	{
+  while(is_alive)
+  {
     char* buff_tap_datagram = malloc(sizeof(char) * DATAGRAM_SIZE);
 
-		data_size = socket_read(tap_fd, &buff_tap_datagram, DATAGRAM_SIZE);
+    data_size = socket_read(tap_fd, &buff_tap_datagram, DATAGRAM_SIZE);
 
     if(data_size == 0) {
       continue;
@@ -162,14 +161,14 @@ void* run_tap_thread(void* arg) {
     }
 
     /* Create a Data packet */
-		struct data_packet* data_pack = malloc(sizeof(struct data_packet));
-		data_pack->head.packet_type = 0xABCD;
-		data_pack->head.packet_length = data_size;
+    struct data_packet* data_pack = malloc(sizeof(struct data_packet));
+    data_pack->head.packet_type = 0xABCD;
+    data_pack->head.packet_length = data_size;
     data_pack->datagram = buff_tap_datagram;
 
     /* Send the packet to the destination */
     broadcast(route_list, (void*)data_pack);
-	 }
+  }
 }
 
 void* run_accept_thread(void* connection_fd) {
@@ -184,7 +183,7 @@ void* run_accept_thread(void* connection_fd) {
   /* Check if host in membership list */
   /* Yes */
   if(in_member_list(member_list, &local, &remote)) {
-    
+
   } 
   /* No */
   else {
@@ -194,29 +193,29 @@ void* run_accept_thread(void* connection_fd) {
 
     /* If Packet is a single record Linkstate */
     if(pack_type == PACKET_TYPE_LINKSTATE &&
-           ((struct linkstate_packet *)pack)->num_neighbors == 1) {
+        ((struct linkstate_packet *)pack)->num_neighbors == 1) {
 
-			struct linkstate_packet* link_pack = (struct linkstate_packet*)pack;
+      struct linkstate_packet* link_pack = (struct linkstate_packet*)pack;
 
-			/* Manipulate dest to include your mac address TODO  getlocalinfo */
-			struct proxy_addr dest;
-			get_local_info(remote_fd, &dest);
-			link_pack->linkstate_head->remote= dest;
+      /* Manipulate dest to include your mac address TODO  getlocalinfo */
+      struct proxy_addr dest;
+      get_local_info(remote_fd, &dest);
+      link_pack->linkstate_head->remote= dest;
 
-			/* Reverse local & dest and add to membership list  TODO */
-			struct linkstate* link = malloc(sizeof(struct linkstate));
-			link->local = dest;
-			link->remote = link_pack->linkstate_head->local;
-			link->ID = current_time();
-			link->avg_RTT = 1;
-			link->next = NULL;
+      /* Reverse local & dest and add to membership list  TODO */
+      struct linkstate* link = malloc(sizeof(struct linkstate));
+      link->local = dest;
+      link->remote = link_pack->linkstate_head->local;
+      link->ID = current_time();
+      link->avg_RTT = 1;
+      link->next = NULL;
 
       /* Add client to Membership list */
       add_member(member_list, link);
 
-			/* Send the unreversed but manipulated lstate pack back, but change source to you TODO */
-			link_pack->source = link_pack->linkstate_head->local;
-			send_to(link_pack, remote_fd);
+      /* Send the unreversed but manipulated lstate pack back, but change source to you TODO */
+      link_pack->source = link_pack->linkstate_head->local;
+      send_to(link_pack, remote_fd);
 
     } 
     /* Not single record linkstate, drop client */
@@ -224,8 +223,8 @@ void* run_accept_thread(void* connection_fd) {
       close(remote_fd);
       return NULL;
     }
-		
-	} 
+
+  } 
 
   /* Keep this connection alive
    * If read or write return error, then connection has been closed */
@@ -236,9 +235,9 @@ void* run_accept_thread(void* connection_fd) {
     void* pack;
     uint16_t pack_type = read_packet(remote_fd, &pack);
     if(packet_ret_logic(pack, remote_fd) < 0) {
-      #if DEBUG
+#if DEBUG
       printf("Packet error. Connection might have closed.\n");
-      #endif
+#endif
       break;
     }
   }
@@ -246,7 +245,7 @@ void* run_accept_thread(void* connection_fd) {
 }
 
 void* start_tcp_listener(void* socket_arg) {
-	int socket_fd = (int)socket_arg;
+  int socket_fd = (int)socket_arg;
   int listen_port = conf->listenport;
 
   int connection_fd;
@@ -286,14 +285,14 @@ void* start_tcp_listener(void* socket_arg) {
     }
 
     pthread_create(&child, NULL, run_accept_thread, (void*) connection_fd);
-  };
+  }
 
-};
+}
 
 void connect_to_peers(struct peerlist* plist) {
   struct peerlist* ptr = plist;
-	struct peerlist* tmp;
-	
+  struct peerlist* tmp;
+
   while(ptr != NULL) {
     int connection_fd = connect_to(ptr->hostname, ptr->port);
 
@@ -301,29 +300,29 @@ void connect_to_peers(struct peerlist* plist) {
      * with RTT of 1 and ID of current time */
     struct linkstate self_lstate;
     self_lstate.ID = current_time();
-		self_lstate.avg_RTT = 1;
-		self_lstate.next = NULL;
+    self_lstate.avg_RTT = 1;
+    self_lstate.next = NULL;
 
-		struct proxy_addr local, remote;
-		
-		if(get_local_info(connection_fd, &local) == -1){
-			fprintf(stderr, "Could not get local info. Error Code: %d", connection_fd);
+    struct proxy_addr local, remote;
+
+    if(get_local_info(connection_fd, &local) == -1){
+      fprintf(stderr, "Could not get local info. Error Code: %d", connection_fd);
       exit(EXIT_FAILURE);
-		}
-		if(get_remote_info(connection_fd, &remote) == -1){
-			fprintf(stderr, "Could not get remote info. Error Code: %d", connection_fd);
+    }
+    if(get_remote_info(connection_fd, &remote) == -1){
+      fprintf(stderr, "Could not get remote info. Error Code: %d", connection_fd);
       exit(EXIT_FAILURE);
-		}
-		self_lstate.local = local;
-		self_lstate.remote = remote;
+    }
+    self_lstate.local = local;
+    self_lstate.remote = remote;
 
 
     /* Send 1 record linkstate packet of end peer */
-		send_to((void*)&self_lstate,connection_fd);
+    send_to((void*)&self_lstate,connection_fd);
 
-   	tmp = ptr;
+    tmp = ptr;
     ptr = ptr->next;
-		free(tmp);
+    free(tmp);
   }
 }
 
@@ -342,28 +341,28 @@ void connect_to_peers(struct peerlist* plist) {
  * Create threads for the tap device and for the socket.
  */
 int main(int argc, char** argv) {
-	pthread_t tcp_thread, tap_thread, poll_thread;
+  pthread_t tcp_thread, tap_thread, poll_thread;
 
   if(argc != 2) {
-		exit(EXIT_FAILURE);
-	}
+    exit(EXIT_FAILURE);
+  }
 
   /* Parse config file */
   struct peerlist* peers;
   parse_file(argv[1], conf, peers);
 
   /* Run TCP Server Thread */
-	pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
+  pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
 
 
   /* Run TAP Thread if device has TAP */
-	if(conf->tap != NULL){
-		TAP_NAME = conf->tap;
-		pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
-	}
+  if(conf->tap != NULL){
+    TAP_NAME = conf->tap;
+    pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
+  }
 
   /* Run Polling Thread */
-	pthread_create(&poll_thread, NULL, poll_membership_list, (void *)peers); 
+  pthread_create(&poll_thread, NULL, poll_membership_list, (void *)peers); 
 
   /* Connect to peers */
   connect_to_peers(peers);
@@ -371,9 +370,9 @@ int main(int argc, char** argv) {
   /* Wait for TCP and TAP and Polling thread */
   pthread_join(tcp_thread, NULL);
   if(conf->tap !=NULL){
-  	pthread_join(tap_thread, NULL);
+    pthread_join(tap_thread, NULL);
   }
   pthread_join(poll_thread,NULL);
 
-	return 0;
+  return 0;
 }
