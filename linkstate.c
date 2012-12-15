@@ -9,7 +9,7 @@
 #define LINE_SIZE 256
 #define SEEN_LIMIT 5
 /* Reading from the Config file */
-struct peerlist* parse_file(char* input_file,struct config* conf){
+struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlist* peers){
 
 	FILE* config_file;
 	char line_buffer[LINE_SIZE];
@@ -62,6 +62,7 @@ struct peerlist* parse_file(char* input_file,struct config* conf){
 	}
 	fclose(config_file);
 	
+  peers = list;
 	return list;
 }
 
@@ -240,16 +241,16 @@ int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack){
 
 }
 
-void send_probes(struct routes* route_list, struct probereq_list* probe_list){
 	
+int send_probes(struct routes* route_list, struct probereq_list* probe_list) {
 	struct probereq_packet* probereq_pack = malloc(sizeof(struct probereq_packet));
 	probereq_pack->ID = current_time();
 	
-	struct routes* ptr = route_list;
+	struct route* ptr = route_list->head;
 
 	while(ptr != NULL){
 		
-		if(send_to(ptr->remote, (void*)probereq_pack,ptr->socket_fd) == -1){
+		if(send_to((void*)probereq_pack,ptr->socket_fd) == -1){
 		}
 
 		struct probereq_list* new_probe = malloc(sizeof(struct probereq_list));
@@ -263,6 +264,7 @@ void send_probes(struct routes* route_list, struct probereq_list* probe_list){
 		ptr = ptr->next;
 	}
 
+  return 1;
 }
 
 uint32_t receive_probe(struct membership_list* member_list, struct routes* route_list, struct probereq_list* probe_list, struct proberes_packet* proberes_pack, unsigned int end_time, struct linkstate* link){
@@ -270,10 +272,10 @@ uint32_t receive_probe(struct membership_list* member_list, struct routes* route
 	struct probereq_list* ptr = probe_list;
 
 	while(ptr != NULL){
-		if(ptr->link == link && proberes_pack->ID == ){
+		if(ptr->link == link && proberes_pack->ID == derp){
 			
 		}
-		uint32_t diff = end_time -
+		uint32_t diff = end_time - derp;
 	
 	}
 	
@@ -284,11 +286,11 @@ uint32_t receive_probe(struct membership_list* member_list, struct routes* route
  * return: -1 if there is an error, 0 otherwise
  */
 int broadcast(struct routes* route_list, void* packet){
-	struct routes* ptr = route_list;
+	struct route* ptr = route_list->head;
 
 	while(ptr != NULL){
 		
-		if(send_to(NULL, packet, ptr->socket_fd) == -1){
+		if(send_to(packet, ptr->socket_fd) == -1){
 			return -1;
 		}
 		ptr = ptr->next;
@@ -303,13 +305,15 @@ int broadcast(struct routes* route_list, void* packet){
  *      a linkstate packet from and send
  * return: Number of neighbors sent
  */
-int send_linkstate(int socket_fd, struct linkstate* membership_list) {
+int send_linkstate(int socket_fd, struct linkstate* link_list) {
   struct linkstate_packet lstate_pack;
 
   get_local_info(socket_fd, &lstate_pack.source);
 
+  lstate_pack.linkstate_head = link_list;
+
   /* Send linkstate packet to socket */
-  send_to(NULL, &lstate_pack, socket_fd);
+  send_to(&lstate_pack, socket_fd);
   //TODO: Figure out how to lock here and send
 }
 
@@ -320,7 +324,7 @@ int create_linkstate_packet(struct membership_list* member_list,
 
   if(list_size == 0) {
     #if DEBUG
-    printf("Size of 0, not sending\n");
+    printf("Size of 0\n");
     #endif
     return 0;
   }
@@ -334,6 +338,19 @@ int create_linkstate_packet(struct membership_list* member_list,
   return list_size;
 }
 
-int flood_linkstate(struct routes* route_list, struct linkstate* member_list) {
+int flood_linkstate(struct routes* route_list, struct membership_list* member_list) {
+  //lock here
+  pthread_mutex_lock(&(member_list->lock));
+  struct proxy_addr source;
 
-};
+  struct linkstate_packet* lstate_pack;
+
+  create_linkstate_packet(member_list, &source, lstate_pack);
+  broadcast(route_list, lstate_pack);
+  pthread_mutex_unlock(&(member_list->lock));
+
+  return 0;
+
+}
+
+
