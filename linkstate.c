@@ -4,9 +4,10 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include "linkstate.h"
+#include "tap.h"
 
 #define LINE_SIZE 256
-
+#define SEEN_LIMIT 5
 /* Reading from the Config file */
 struct peerlist* parse_file(char* input_file,struct config* conf){
 
@@ -165,23 +166,56 @@ void delete_expired_members(struct membership_list* members, int link_timeout) {
 	}
 }
 
-/* Helper function to see if you have seen the packet in last 5 sec
+/* Helper function to see if you have seen the packet
  *return: 0 if it has seen it, -1 if it has not
  */
-int is_seen(struct last_seen* list, void* packet, struct proxy_addr* source, struct proxy_addr* dest){
-		struct last_seen* ptr = list;
-		int temp1, temp2;
+int is_seen(struct last_seen_list* list, void* packet){
+		pthread_mutex_lock(&(list->lock));
+
+		struct last_seen* ptr, tmp = list->head;
+		struct last_seen* prev;
+		struct data_packet pack = (data_packet*)packet;
+		struct proxy_addr* source = malloc(sizeof(struct proxy_addr));
+		struct proxy_addr* dest = malloc(sizeof(struct proxy_addr));
+
+		find_tap_dest(pack->datagram, source, dest);
 
 		while(ptr != NULL){
 			if(((compare_proxy_addr(list->source, source)) == 0) && (compare_proxy_addr(list->dest, dest) == 0)){
 				if(packet->ID == ptr->ID){
-					return 0;
+					saw = 0;
+					break;
 				}
-
+			}
+			if(current_time() - ptr->ID > SEEN_LIMIT){
+				if(prev == NULL){
+					tmp = ptr;
+					list->head = ptr->next;
+					free(tmp);
+					ptr = list->head;
+				}else{
+					prev->next = ptr->next;
+					free(ptr);
+					ptr = prev->next;
+				}
+			}
+			else {
+				prev = ptr;
+				ptr = ptr->next;
 			}
 		}
+		
+		if(saw == NULL){
+			saw = -1;
+		}
 
-		return -1;
+		pthread_mutex_unlock(&(list->lock));
+		return saw;
+
+}
+
+int add_seen(struct last_seen_list* list, struct data_packet* packet){
+
 
 }
 
@@ -204,7 +238,7 @@ void send_probes(struct routes* route_list, struct probereq_list* probe_list){
 
 		struct probereq_list* new_probe = malloc(sizeof(struct probereq_list));
 		new_probe->link = ptr->link;
-		new_probe->ID = probe;
+		new_probe->ID = probereq_pack->ID;
 
 		tmp = probe_list;
 		new_probe->next = tmp;
@@ -227,6 +261,24 @@ uint32_t receive_probe(struct membership_list* member_list, struct routes* route
 	
 	}
 	
+}
+/* Send a packet to everybody in the route list
+ * param route_list: the ptr to the head of the list of routes
+ * param packet: packet to send to everybody in route_list
+ * return: -1 if there is an error, 0 otherwise
+ */
+int broadcast(struct routes* route_list, void* packet){
+	struct routes* ptr = route_list;
+
+	while(ptr != NULL){
+		
+		if(send_to(NULL, packet, ptr->socket_fd) == -1){
+			return -1;
+		}
+		ptr = ptr->next;
+	}
+
+	return 0;
 
 }
 /* Send a linkstate packet to a socket

@@ -18,10 +18,16 @@ struct peerlist {
 	struct peerlist* next;
 };
 
+struct last_seen_list{
+	struct last_seen* head;
+	pthread_mutex_t lock;
+};
+
 struct last_seen {
 	uint64_t ID;
-	struct proxy_addr source;
-	struct proxy_addr dest;
+	uint16_t packet_type;
+	struct proxy_addr* source;
+	struct proxy_addr* dest;
 	struct last_seen* next;
 };
 
@@ -30,7 +36,7 @@ struct membership_list {
 	struct linkstate* list;
 	int size;
 	pthread_mutex_t lock;
-}
+};
 
 struct probereq_list {
   struct linkstate* link;
@@ -72,6 +78,9 @@ struct linkstate* in_member_list(struct membership_list* members,
  */
 int get_peer_route(struct proxy_addr* dest);
 
+/*
+ * return: 0 for okay, -1 for ERROR
+ */
 int broadcast(struct routes* route_list, void* packet);
 
 int send_linkstate(int socket_fd, struct linkstate* l_state);
