@@ -24,7 +24,8 @@ struct last_seen_list{
 };
 
 struct last_seen {
-	uint64_t ID;
+	uint16_t ID;
+	double time;
 	uint16_t packet_type;
 	struct proxy_addr* source;
 	struct proxy_addr* dest;

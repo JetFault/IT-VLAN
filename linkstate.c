@@ -93,12 +93,10 @@ struct linkstate* in_member_list(struct membership_list* members,
 
 	pthread_mutex_lock(&(members->lock));
 	struct linkstate* ptr = members->list;
-	struct linkstate* found;
+	struct linkstate* found = NULL;
 
 	while(ptr != NULL){
-		
-		if(((remote->ip == ptr->remote->ip) && (remote->port == ptr->remote->port)) &&
-				((local->ip == ptr->local->ip) && (local->port == ptr->local->port))){
+		if((compare_proxy_addr(remote, ptr->remote) == 0) && (compare_proxy_addr(local,ptr->local) == 0)){		
 			found = ptr;
 			break;
 		}
@@ -174,20 +172,21 @@ int is_seen(struct last_seen_list* list, void* packet){
 
 		struct last_seen* ptr, tmp = list->head;
 		struct last_seen* prev;
-		struct data_packet pack = (data_packet*)packet;
+		struct data_packet pack = (struct data_packet*)packet;
 		struct proxy_addr* source = malloc(sizeof(struct proxy_addr));
 		struct proxy_addr* dest = malloc(sizeof(struct proxy_addr));
-
+	
+		int saw = -1;
 		find_tap_dest(pack->datagram, source, dest);
 
 		while(ptr != NULL){
 			if(((compare_proxy_addr(list->source, source)) == 0) && (compare_proxy_addr(list->dest, dest) == 0)){
-				if(packet->ID == ptr->ID){
+				if(pack->ID == ptr->ID){
 					saw = 0;
 					break;
 				}
 			}
-			if(current_time() - ptr->ID > SEEN_LIMIT){
+			if(current_time() - ptr->time> SEEN_LIMIT){
 				if(prev == NULL){
 					tmp = ptr;
 					list->head = ptr->next;
@@ -204,11 +203,7 @@ int is_seen(struct last_seen_list* list, void* packet){
 				ptr = ptr->next;
 			}
 		}
-		
-		if(saw == NULL){
-			saw = -1;
-		}
-
+	
 		pthread_mutex_unlock(&(list->lock));
 		return saw;
 

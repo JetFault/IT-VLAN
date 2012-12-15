@@ -170,16 +170,28 @@ void* run_accept_thread(void* connection_fd) {
     if(pack_type == PACKET_TYPE_LINKSTATE &&
            ((struct linkstate_packet *)pack)->num_neighbors == 1) {
 
+			struct linkstate_packet* link_pack = (struct linkstate_packet*)pack;
+
+			/* Manipulate dest to include your mac address TODO  getlocalinfo */
+			struct proxy_addr dest;
+			get_local_info(remote_fd, &dest);
+			link_pack->linkstate_head.dest = dest;
+
+			/* Reverse local & dest and add to membership list  TODO */
+			struct linkstate* link = malloc(sizeof(struct linkstate));
+			link->local = dest;
+			link->remote = link_pack->linkstate_head->local;
+			link->ID = current_time();
+			link->avg_RTT = 1;
+			link->next = NULL;
+
       /* Add client to Membership list */
-      add_member(member_list, (struct linkstate_packet *)pack->linkstate_head);
+      add_member(member_list, link);
 
-      /* Send Link State packet with RTT of 1 and current time to now */
-      struct linkstate* l_state;
-      l_state->avg_RTT = 1;
-      l_state->ID = current_time();
-      l_state->next = NULL;
+			/* Send the unreversed but manipulated lstate pack back, but change source to you TODO */
+			link_pack->source = link_pack->linkstate_head.local;
+			send_linkstate(remote_fd,link_pack);
 
-      send_linkstate(remote_fd, l_state);
     } 
     /* Not single record linkstate, drop client */
     else {

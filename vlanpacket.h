@@ -47,6 +47,7 @@ struct header {
 };
 
 struct data_packet {
+	uint16_t id;
   struct header head;
   char* datagram;
 };
