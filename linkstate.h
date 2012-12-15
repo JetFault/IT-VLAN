@@ -110,6 +110,6 @@ int destroy_vlan(struct membership_list* member_list, struct routes* routes_list
 
 int send_probes(struct routes* route_list, struct probereq_list* probe_list);
 
-uint32_t receive_probe(struct membership_list* member_list, ,struct probereq_list* probe_list, struct proberes_packet* proberes_pack, unsigned int end_time, struct linkstate* link);
+uint32_t receive_probe(struct membership_list* member_list ,struct probereq_list* probe_list, struct proberes_packet* proberes_pack, unsigned int end_time, struct linkstate* link);
 
 #endif
