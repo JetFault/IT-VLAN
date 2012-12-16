@@ -86,6 +86,7 @@ int packet_ret_logic(void* packet, int socket_fd) {
       struct proxy_addr src, dest, local;
       find_tap_dest(data_pack->datagram, &src, &dest, NULL);
       get_local_info(socket_fd, &local, local_addr);
+      dest.port = local.port;
 
       //If I am the destination
       if(compare_proxy_addr(&dest, &local) == 0 || 
