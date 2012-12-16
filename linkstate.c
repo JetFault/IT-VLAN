@@ -50,8 +50,8 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
 			tmp->hostname  = (char*)malloc(sizeof(char)*(strlen(temp) + 1));
       strcpy(tmp->hostname, temp);
       tmp->port=atoi(strtok(NULL, " \n"));
-      ptr = tmp;
-			ptr = ptr->next;
+      tmp->next = ptr;
+			ptr = tmp;
     
 		} else if(strcmp(tok, "quitAfter") == 0) {
       conf->quitafter = atoi(strtok(NULL," \n"));
@@ -65,7 +65,8 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
     }
   }
   fclose(config_file);
-
+	
+	peers = ptr;
   return peers;
 }
 

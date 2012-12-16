@@ -368,7 +368,7 @@ int main(int argc, char** argv) {
   arp_broadcast_mac[5] = 255;
 
   /* Parse config file */
-  struct peerlist* peers = malloc(sizeof(struct peerlist));
+  struct peerlist* peers;
   parse_file(argv[1], conf, peers);
 
   /* Run TCP Server Thread */
