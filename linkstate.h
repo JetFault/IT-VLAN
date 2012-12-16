@@ -88,6 +88,8 @@ int get_peer_route(struct proxy_addr* dest);
 struct route* get_route_socket(struct routes* route_list, int socket_fd);
 struct route* get_route_link(struct routes* route_list, struct linkstate* link);
 
+int add_route_list(struct routes* route_list, int connection_fd, struct linkstate* link);
+
 /* Close peer route connections and remove from route_list
  *    peer_route param is optional, if NULL clears entire list
  * param route_list: routes struct

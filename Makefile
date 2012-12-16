@@ -1,5 +1,5 @@
 CC = gcc -std=c99
-CCFLAGS = -g -gdwarf-2 -g3
+CCFLAGS = -gdwarf-2 -g3
 
 all: cs352proxy 
 

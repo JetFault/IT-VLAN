@@ -376,6 +376,22 @@ struct route* get_route_link(struct routes* route_list, struct linkstate* link) 
 	return found;
 }
 
+int add_route_list(struct routes* route_list, int connection_fd, struct linkstate* link) {
+
+  pthread_mutex_lock(&(route_list->lock));
+  struct route* list = route_list->head;
+
+  struct route * new_route = malloc(sizeof(struct route));
+  new_route->socket_fd = connection_fd;
+  new_route->link = link;
+
+  new_route->next = list;
+  route_list->head = new_route;
+  pthread_mutex_unlock(&(route_list->lock));
+  
+  return 1;
+}
+
 /* Send a packet to everybody in the route list
  * param route_list: the ptr to the head of the list of routes
  * param packet: packet to send to everybody in route_list

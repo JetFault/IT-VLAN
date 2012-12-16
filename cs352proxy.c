@@ -224,6 +224,7 @@ void* run_accept_thread(void* connection_fd) {
 
       /* Add client to Membership list */
       add_member(member_list, link);
+      add_route_list(route_list, remote_fd, link);
 
       /* Send the unreversed but manipulated lstate pack back, but change source to you TODO */
       link_pack->source = link_pack->linkstate_head->local;
@@ -237,6 +238,7 @@ void* run_accept_thread(void* connection_fd) {
     }
 
   } 
+
 
   /* Keep this connection alive
    * If read or write return error, then connection has been closed */
