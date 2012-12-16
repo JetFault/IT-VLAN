@@ -1,17 +1,107 @@
 1) Who is in the group?
 	Karina Ruzinov, Yaroslav(Jerry) Reptak, Ivan Parra-Orlandoni.
 
-2) What each group member did, what did he or she contribute to the project?
-	Jerry – Developed the TCP port thread
-	Ivan – Developed the VTAP Listener Thread
-	Karina – Developed the packet functions (encapsulation, sending, receiving, etc...)
-	All three – Worked on general program architecture.
 
-3) Describe the general architecture of your program, what each function does and how it does it.
-	Our program starts off by prompting the user for inputs. If there are 3 inputs, the program starts in server mode (delineated by a global variable). In server mode, the program Bind a port to a TCP socket, listens on the socket, and accepts incoming connections on the socket. The program interprets incoming packets in a slightly different way... the way the client is set up, instead of sending an amalgamated struct of a packet, it sends three different datum: the packet type, the packet length, and the packet body. The server then reads these packets one at a time and passes them into the Vtap listener. The Vtap listener then writes these packets.
-	In client mode, the program binds a port to create an outgoing TCP connection. The socket opens a connection to the server, and transmits packets in the way previously mentioned.
+-Karina  
+  - If no TAP device specified in config, use eth0 mac addr. Read it from /sys/class/net/eth0/address
+  - Membership List
+  - Forwarding Table
+  - Routing Graph
+  - Routing
+    + The membership list and link state list will be used to generate a directed graph.
+    + You will use the graph to generate a forwarding table for the given proxy.
+    + You should use shortest path routing where the link cost is the RTT in milliseconds. 
+  - Network Measurement and Link Cost.
+    + RTT will be measured every 1 second by:
+      - Measuring the time between a sent probe request packet and probe response packet.
+      - The RTT will be included in the link state between the peers. 
+      - The RTT is computed by:
+        + Taking a timestamp
+        + Sending probe request 
+        + Waiting for the probe response
+        + Recording the difference in time
+			- Maintaining the Membership list.
+				+ Every linkPeriod seconds a proxy will send a link state packet, which contains all the
+				link-state records it owns, to all connected proxies. 
+				- These linkstate records are flooded throughout the system.
+				+ If a proxy receives a leave packet
+				- If it has not seen this ID yet
+				+ It should:
+					- Send a leave message to all the connected proxies
+					- Close all the sockets for that peer
+					- Then exit. 
+	- Proxies receiving a leave packet will remove that particular proxy from the membership list. 
+	+ The membership list should be periodically scanned to remove stale entries.
+	- When no link state record for a proxy has been received for linkTimeout seconds.
 
-4) What difficulties you had, challenges you encountered, how you solved them, and which are left open?
-	We had trouble interpreting the function of the vtap listener. We also had trouble conceptualizing program flow as presented in assignment... we ended up having to come up with our own program flow.
-	One of the more annoying parts was trying to figure out how to read and write packets from an incoming connection. 
+Ivan ---------------------------------------------------------------------------------------------------------
+	- Managing the Link-State Graph:
+		+ Directed, weighted graph representing the state of the network.
+		+ A link-state record is an edge. 
+		+ Nodes are identified using the layer-2 MAC address, either through the tapX or eth0 interface.
+		+ The weight of each edge is the Round-Trip-Time (RTT), thus lower valued edges are better.
+		+ The direction of each edge is obtained by the local/remote part of the link-state record
+			- The edge begins at the local side and ends at the remote side. 
+		+ In order to build and maintain the graph, each proxy must perform the following: 
+		- Create link state records from socket connections. 
+		+ That is, for each connected peer,
+		- Every LinkPeriod seconds the proxy creates a new link state record.
+		- The RTT field is created from measurements of RTT packets.
+		+ If the proxy does not have the RTT working, it should set all the RTT to a value of 1. 
+						- Forward locally generated and records from other proxies to all your neighbors.
+						- If you maintain the graph as an edge set, send all the valid edges in the link state packet. 
+						- Remove duplicates and time-out link state records. 
+							+ This relies on the ID field in the record/edge. 
+							+ The proxy can assume the ID field is monotonically increasing.
+							+ The proxy must generate records that are increasing as well.
+							+ When your proxy starts, it can assume zero as a base ID value.
+							+ If a received record/edge has a lower value, it is discarded.
+							+ When a new record/edge is received, it is time-stamped.
+							+ Records that are older than LinkTimeout seconds are also removed from the graph.
+							+ Records that have a lower ID than expired records with higher IDs are also discarded.
+							+ Thus, the proxy must retain at least 1 expired edge in order to remember which edges it must discard.
+				+ In addition, once it has the link-state graph, each proxy must:
+					- Build a forwarding table for packets from the graph.
+						+ It maps a destination MAC address coming from the tap device to a socket.
+						+ You should run a shortest path algorithm on the graph to build the forwarding table. 
 
+-Jerry -------------------------------------------------------------------------------------------------------
+  - Add currently open sockets to linkstate list
+  - Route packets to appropriate end host
+  - ID should be current time in milliseconds
+  * Create a Client and Server socket
+  - Server
+    + Accept a connection
+      - Wait for for a 1 record linkstate packet
+      - If the first packet is not a single record link state packet,
+        + the proxy will close the connection.
+      - If it is, it adds the client in to the membership list.
+      - The server then generates it's own link state packet and sends over same socket
+      - The RTT should be set to 1 and the ID set to the current time.
+  - Client
+    + Connect to all your peers
+  - Actions on Linkstate Packet Arrival
+    + For each record in the packet,
+      - Receiver checks the local and remote MAC addresses against it’s membership list.
+        + If either is not on this list
+          - the receiving proxy tries to connect to the reported IP address in the record.
+            + If this connect() call  fails, the two proxiesi remain disconnected. 
+        + If they are in your membership list
+          - Check if ID is > old ID.
+            + If yes, replace old linkstate with this newer one
+            + Else, discard
+  - Flooding Link State Records. 
+    + Each link state record is unique, but whole sets of records will be transferred between 
+        pairs of proxies in bulk.
+    + Upon receiving a neighbor's link state records,
+      - Check for duplicates in link state list using the MAC and ID fields as unique identifiers
+      - Update the list accordingly
+    + Every 10 seconds a proxy will send its' link state records to the neighboring connected proxies. 
+  - Packet Type/Length should be in Network Endian
+          
+
+  - Taking down the whole VLAN
+    + If a node receives a quit packet.
+      - Forward it to all connected peers
+      - Close all the sockets
+      - Then exit

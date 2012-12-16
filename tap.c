@@ -7,18 +7,20 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <net/if.h>
 #include <arpa/inet.h>
 #include <linux/if_tun.h>
+#include <linux/netdevice.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <netinet/ether.h> 
+#include <netinet/ether.h>
+#include <net/ethernet.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h> 
 #include <netinet/udp.h>
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <net/if.h>
 
 #include "tap.h"
 #include "vlanpacket.h"

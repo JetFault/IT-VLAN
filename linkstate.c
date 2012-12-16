@@ -172,6 +172,53 @@ int compare_last_seen(struct last_seen* seen1, struct last_seen* seen2) {
 
 }
 
+int close_peer_route(struct membership_list* member_list, struct routes* route_list, struct route* peer_route){
+	
+	struct route* ptr = route_list->head;
+	
+	if(peer_route != NULL){
+		delete_member(member_list, peer_route->link);
+		
+		struct route* prev = NULL;
+
+		while(ptr != NULL){
+			if(ptr == peer_route){
+				if(prev == NULL){
+					route_list->head = ptr->next;
+					free(ptr);
+					break;
+				}
+				else{
+					prev->next = ptr->next;
+					free(ptr);
+				}
+			}else{
+				prev = ptr;
+				ptr = ptr->next;
+			}
+
+		}
+
+	} else {
+		
+		struct route* tmp = ptr;
+
+		while(ptr != NULL){
+			
+			route_list->head = ptr->next;
+			free(tmp);
+			ptr =  route_list->head;
+			tmp = ptr;
+
+
+		}
+
+	}
+
+	return 0;
+
+}
+
 /* Helper function to see if you have seen the packet
  *return: 0 if it has seen it, -1 if it has not
  */
@@ -283,6 +330,47 @@ int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack){
    }
    */
 
+
+struct route* get_route_socket(struct routes* route_list, int socket_fd) {
+	pthread_mutex_lock(&(route_list->lock));
+	struct route* ptr = route_list->head;
+	struct route* found = NULL;
+
+	while(ptr != NULL){
+
+		if(ptr->socket_fd == socket_fd){
+			found = ptr;
+			break;
+
+		}else{
+			ptr = ptr->next;
+		}
+	}
+
+	pthread_mutex_unlock(&(route_list->lock));
+	return found;
+}
+
+struct route* get_route_link(struct routes* route_list, struct linkstate* link) {
+	
+	pthread_mutex_lock(&(route_list->lock));
+	struct route* ptr = route_list->head;
+	struct route* found = NULL;
+
+	while(ptr != NULL){
+
+		if(ptr->link == link){
+			found = ptr;
+			break;
+
+		}else{
+			ptr = ptr->next;
+		}
+	}
+
+	pthread_mutex_unlock(&(route_list->lock));
+	return found;
+}
 
 /* Send a packet to everybody in the route list
  * param route_list: the ptr to the head of the list of routes

@@ -32,6 +32,7 @@ uint8_t arp_broadcast_mac[6];
 
 struct proxy_addr* local_addr;
 
+struct last_seen_list* seen_list;
 int server = 0;
 int tcp_fd = -1;
 int tap_fd = -1;
@@ -90,7 +91,7 @@ int packet_ret_logic(void* packet, int socket_fd) {
       if(compare_proxy_addr(&dest, &local) == 0 || 
           arp_broadcast_mac == dest.mac_addr) {
         /* Send to TAP */
-        send_to_tap(tap_fd, data_pack->datagram);
+        tap_write(tap_fd, data_pack->datagram, data_pack->head.packet_length);
       }
       //I'm not the destination
       else {
