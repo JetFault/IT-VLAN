@@ -19,6 +19,8 @@ int allocate_tunnel(char *dev, int flags, char* local_mac);
  */
 int find_tap_dest(char* datagram, struct proxy_addr *src, struct proxy_addr *dest, uint16_t* id);
 
+int get_tap_info(char* tap_name, struct proxy_addr* tap_info);
+
 int send_to_tap(int tap_fd, char* datagram);
 
 /* Read from a tap file descriptor, to a buffer, of a certain size

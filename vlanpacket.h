@@ -135,9 +135,10 @@ ssize_t socket_write(int socket_fd, char* buffer, size_t length);
 /* Get local socket information and create proxy_addr
  * param socket_fd: socket file descriptor
  * param proxy_addr: address of where to put proxy_addr
+ * param tap_add: tap proxy_addr if there is tap
  * return: -1 on failure, 0 on success
  */
-int get_local_info(int socket_fd, struct proxy_addr* info);
+int get_local_info(int socket_fd, struct proxy_addr* info, struct proxy_addr* tap_add);
 
 /* Get remote socket information and create proxy_addr
  * param socket_fd: socket file descriptor
