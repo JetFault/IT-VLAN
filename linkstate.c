@@ -15,7 +15,7 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
   char line_buffer[LINE_SIZE];
   char* line = &line_buffer[0];
   char* tok;
-  struct peerlist* list = malloc(sizeof(struct peerlist));
+  struct peerlist* list;
   conf->tap = NULL;
   struct peerlist* ptr = list;
   config_file = fopen(input_file, "r");
@@ -43,12 +43,16 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
     } else if(strcmp(tok, "linkTimeout") == 0) {
       conf->linktimeout = atoi(strtok(NULL," \n"));
     } else if(strcmp(tok, "peer") == 0) {
-      char* temp = strtok(NULL," \n");
-      ptr->hostname  = (char*)malloc(sizeof(char)*(strlen(temp) + 1));
+      
+			char* temp = strtok(NULL," \n");
+      
+  		struct peerlist* ptr = malloc(sizeof(struct peerlist));
+			ptr->hostname  = (char*)malloc(sizeof(char)*(strlen(temp) + 1));
       strcpy(ptr->hostname, temp);
       ptr->port=atoi(strtok(NULL, " \n"));
       ptr = ptr->next;
-    } else if(strcmp(tok, "quitAfter") == 0) {
+    
+		} else if(strcmp(tok, "quitAfter") == 0) {
       conf->quitafter = atoi(strtok(NULL," \n"));
     } else if(strcmp(tok, "tapDevice") == 0) {
       char* temp = strtok(NULL, " \n");
