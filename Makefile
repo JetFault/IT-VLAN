@@ -4,8 +4,7 @@ CCFLAGS = -gdwarf-2 -g3
 all: cs352proxy 
 
 cs352proxy: connect.o tap.o vlanpacket.o linkstate.o
-		$(CC) $(CCFLAGS) -o cs352proxy -lpthread cs352proxy.c tap.o connect.o vlanpacket.o linkstate.o
-
+		$(CC) $(CCFLAGS) -o cs352proxy -DDEBUG -lpthread cs352proxy.c tap.o connect.o vlanpacket.o linkstate.o 
 connect.o: connect.c
 	$(CC) $(CCFLAGS) -c connect.c
 
