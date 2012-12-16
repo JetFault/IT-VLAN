@@ -367,7 +367,6 @@ int main(int argc, char** argv) {
   arp_broadcast_mac[0] = 255;
   arp_broadcast_mac[1] = 255;
   arp_broadcast_mac[2] = 255;
-	printf("socket: %d\n", socket_fd);
   arp_broadcast_mac[3] = 255;
   arp_broadcast_mac[4] = 255;
   arp_broadcast_mac[5] = 255;
