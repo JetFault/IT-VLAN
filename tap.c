@@ -10,7 +10,6 @@
 #include <arpa/inet.h>
 #include <linux/if_tun.h>
 #include <linux/netdevice.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/ether.h>
 #include <net/ethernet.h>
@@ -18,9 +17,10 @@
 #include <netinet/tcp.h> 
 #include <netinet/udp.h>
 #include <ifaddrs.h>
-#include <netdb.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 #include "tap.h"
 #include "vlanpacket.h"
@@ -111,6 +111,7 @@ int get_tap_info(char* tap_name, struct proxy_addr* tap_info) {
 
       tap_info->ip = ntohl(sa_in->sin_addr.s_addr);
 
+#if DEBUG
       s = getnameinfo(ifa->ifa_addr, sizeof(struct sockaddr_in),
           host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
 
@@ -118,7 +119,6 @@ int get_tap_info(char* tap_name, struct proxy_addr* tap_info) {
         printf("getnameinfo() failed: %s\n", gai_strerror(s));
         exit(EXIT_FAILURE);
       }
-#if DEBUG
       printf("\taddress: <%s>\n", host);
 #endif
       break;

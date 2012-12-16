@@ -102,7 +102,7 @@ int close_peer_route(struct membership_list* member_list, struct routes* route_l
  */
 int broadcast(struct routes* route_list, void* packet);
 
-int send_linkstate(int socket_fd, struct linkstate* l_state);
+int send_linkstate(int socket_fd, struct linkstate* l_state, struct proxy_addr* local);
 
 int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack);
 

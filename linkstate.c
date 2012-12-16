@@ -396,10 +396,10 @@ int broadcast(struct routes* route_list, void* packet){
  *      a linkstate packet from and send
  * return: Number of neighbors sent
  */
-int send_linkstate(int socket_fd, struct linkstate* link_list) {
+int send_linkstate(int socket_fd, struct linkstate* link_list, struct proxy_addr* local) {
   struct linkstate_packet lstate_pack;
 
-  get_local_info(socket_fd, &lstate_pack.source);
+  get_local_info(socket_fd, &lstate_pack.source, local);
 
   lstate_pack.linkstate_head = link_list;
 
