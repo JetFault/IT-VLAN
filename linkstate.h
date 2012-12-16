@@ -47,6 +47,7 @@ struct probereq_list {
 
 struct routes {
   struct route* head;
+	pthread_mutex_t lock;
 };
 
 struct route {
