@@ -387,17 +387,11 @@ int main(int argc, char** argv) {
   /* Parse config file */
   struct peerlist* peers;
   peers = parse_file(argv[1], conf, peers);
-
-  /* Run TCP Server Thread */
-	tcp_fd = create_socket();
-  pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
-
   local_addr = malloc(sizeof(struct proxy_addr));
 
-  /* Run TAP Thread if device has TAP */
+
   if(conf->tap != NULL){
     TAP_NAME = conf->tap;
-    pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
   } else {
     // Get device MAC address //
     char buffer[256];
@@ -410,6 +404,15 @@ int main(int argc, char** argv) {
     fread(buffer,1,256,f);
     sscanf(buffer,"%hhX:%hhX:%hhX:%hhX:%hhX:%hhX",local_mac,local_mac+1,local_mac+2,local_mac+3,local_mac+4,local_mac+5);
   }
+
+  /* Run TCP Server Thread */
+	tcp_fd = create_socket();
+  pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
+
+  /* Run TAP Thread if device has TAP */
+  if(conf->tap != NULL){
+    pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
+	}
 
   /* Run Polling Thread */
   pthread_create(&poll_thread, NULL, poll_membership_list, (void *)peers); 
