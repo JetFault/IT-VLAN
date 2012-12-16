@@ -71,8 +71,8 @@ int compare_proxy_addr(struct proxy_addr* paddr1, struct proxy_addr* paddr2){
 	}
 	
 	return -1;
-
 }
+
 /* Read from the socket fd to get a packet
  * param socket_fd: Socket fd to read from
  * param packet_struct: Address of where to store packet_struct

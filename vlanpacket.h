@@ -153,4 +153,5 @@ int get_remote_info(int socket_fd, struct proxy_addr* info);
  * return: -1 if not the same, 0 if they are the same
  */
 int compare_proxy_addr(struct proxy_addr* paddr1, struct proxy_addr* paddr2);
+
 #endif

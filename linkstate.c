@@ -354,6 +354,5 @@ int flood_linkstate(struct routes* route_list, struct membership_list* member_li
   pthread_mutex_unlock(&(member_list->lock));
 
   return 0;
-
 }
 
