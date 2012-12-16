@@ -72,7 +72,6 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
 
 void add_member(struct membership_list* members, struct linkstate* link){
 
-  pthread_mutex_lock(&(members->lock));
 
   struct linkstate* temp = in_member_list(members, &(link->local), &(link->remote));
 
@@ -89,7 +88,6 @@ void add_member(struct membership_list* members, struct linkstate* link){
     members->list = ptr;
     members->size++;
   }
-  pthread_mutex_unlock(&(members->lock));
 
   return;
 }
@@ -98,7 +96,6 @@ void add_member(struct membership_list* members, struct linkstate* link){
 struct linkstate* in_member_list(struct membership_list* members, 
     struct proxy_addr* local, struct proxy_addr* remote){
 
-  pthread_mutex_lock(&(members->lock));
   struct linkstate* ptr = members->list;
   struct linkstate* found = NULL;
 
@@ -113,7 +110,6 @@ struct linkstate* in_member_list(struct membership_list* members,
 
   }
 
-  pthread_mutex_unlock(&(members->lock));
 
   return found;
 }
