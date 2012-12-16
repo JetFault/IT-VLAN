@@ -17,4 +17,4 @@ sudo ip link set tap2 up
 sudo ip addr add 10.2.2.$1/24 dev tap2
  
 #Verify the interface is up and packets will be routed to it by looking at the routing table:
-echo -e "\nRouting to:\n\t`sudo route -n | grep tun2`"
+echo -e "\nRouting to:\n\t`sudo route -n | grep tap2`"

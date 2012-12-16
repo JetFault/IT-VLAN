@@ -1,0 +1,5 @@
+listenPort 3004
+linkPeriod 20
+linkTimeout 30
+peer 128.6.5.151
+quitAfter 5

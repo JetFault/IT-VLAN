@@ -1,0 +1,28 @@
+cs352-21.rutgers.edu
+  eth0: 128.6.171.21
+    HWaddr: 00:50:56:33:52:15
+  tap2: 10.2.2.3
+    HWaddr: DE:AD:AC:BD:09:03
+  setup.sh 3
+
+cs352-22.rutgers.edu
+  eth0: 128.6.5.151
+    HWaddr: 00:50:56:03:52:16
+  tap2: 10.2.2.2
+    HWaddr: DE:AD:AC:BD:09:02
+  setup.sh 2
+
+cs352-21.cs.rutgers.edu
+  eth0: 128.6.171.21
+    HWaddr: 00:50:56:33:52:15
+  tap2: 10.2.2.3
+    HWaddr: DE:AD:AC:BD:09:03
+  setup.sh 3
+
+cs352-22.cs.rutgers.edu
+  eth0: 128.6.171.22
+    HWaddr: 00:50:56:33:52:16
+  tap2: 10.2.2.1
+    HWaddr: DE:AD:AC:BD:09:01
+  setup.sh 1
+
