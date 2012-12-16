@@ -273,7 +273,6 @@ int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack){
   seen_item->time_received = current_time();
 
 
-  pthread_mutex_lock(&(seen_list->lock));
 
   //If seen already return 0
   if(is_seen(seen_list, seen_item) == 0) {
@@ -282,7 +281,6 @@ int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack){
 
   seen_item->next = seen_list->head;
   seen_list->head = seen_item;
-  pthread_mutex_unlock(&(seen_list->lock));
 
   return 1;
 
@@ -332,7 +330,6 @@ int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack){
 
 
 struct route* get_route_socket(struct routes* route_list, int socket_fd) {
-	pthread_mutex_lock(&(route_list->lock));
 	struct route* ptr = route_list->head;
 	struct route* found = NULL;
 
@@ -347,13 +344,11 @@ struct route* get_route_socket(struct routes* route_list, int socket_fd) {
 		}
 	}
 
-	pthread_mutex_unlock(&(route_list->lock));
 	return found;
 }
 
 struct route* get_route_link(struct routes* route_list, struct linkstate* link) {
 	
-	pthread_mutex_lock(&(route_list->lock));
 	struct route* ptr = route_list->head;
 	struct route* found = NULL;
 
@@ -368,13 +363,11 @@ struct route* get_route_link(struct routes* route_list, struct linkstate* link) 
 		}
 	}
 
-	pthread_mutex_unlock(&(route_list->lock));
 	return found;
 }
 
 int add_route_list(struct routes* route_list, int connection_fd, struct linkstate* link) {
 
-  pthread_mutex_lock(&(route_list->lock));
   struct route* list = route_list->head;
 
   struct route * new_route = malloc(sizeof(struct route));
@@ -383,7 +376,6 @@ int add_route_list(struct routes* route_list, int connection_fd, struct linkstat
 
   new_route->next = list;
   route_list->head = new_route;
-  pthread_mutex_unlock(&(route_list->lock));
   
   return 1;
 }
@@ -449,13 +441,11 @@ int create_linkstate_packet(struct membership_list* member_list,
 
 int flood_linkstate(struct routes* route_list, struct membership_list* member_list, struct proxy_addr* source) {
   //lock here
-  pthread_mutex_lock(&(member_list->lock));
 
   struct linkstate_packet* lstate_pack;
 
   create_linkstate_packet(member_list, source, lstate_pack);
   broadcast(route_list, lstate_pack);
-  pthread_mutex_unlock(&(member_list->lock));
 
   return 0;
 }
