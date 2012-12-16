@@ -15,9 +15,9 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
   char line_buffer[LINE_SIZE];
   char* line = &line_buffer[0];
   char* tok;
-  struct peerlist* list;
   conf->tap = NULL;
-  struct peerlist* ptr = list;
+  struct peerlist* ptr = peers;
+
   config_file = fopen(input_file, "r");
 
   if(config_file == NULL)  {
@@ -46,11 +46,12 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
       
 			char* temp = strtok(NULL," \n");
       
-  		struct peerlist* ptr = malloc(sizeof(struct peerlist));
-			ptr->hostname  = (char*)malloc(sizeof(char)*(strlen(temp) + 1));
-      strcpy(ptr->hostname, temp);
-      ptr->port=atoi(strtok(NULL, " \n"));
-      ptr = ptr->next;
+  		struct peerlist* tmp = malloc(sizeof(struct peerlist));
+			tmp->hostname  = (char*)malloc(sizeof(char)*(strlen(temp) + 1));
+      strcpy(tmp->hostname, temp);
+      tmp->port=atoi(strtok(NULL, " \n"));
+      ptr = tmp;
+			ptr = ptr->next;
     
 		} else if(strcmp(tok, "quitAfter") == 0) {
       conf->quitafter = atoi(strtok(NULL," \n"));
@@ -65,8 +66,7 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
   }
   fclose(config_file);
 
-  peers = list;
-  return list;
+  return peers;
 }
 
 void add_member(struct membership_list* members, struct linkstate* link){
