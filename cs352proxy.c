@@ -27,6 +27,11 @@ struct config* conf;
 struct routes* route_list;
 struct membership_list* member_list;
 struct probereq_list* probe_list;
+
+uint8_t arp_broadcast_mac[6];
+
+struct proxy_addr* local_addr;
+
 struct last_seen_list* seen_list;
 int server = 0;
 int tcp_fd = -1;
@@ -36,6 +41,7 @@ int is_alive = 1;
 
 char* TAP_NAME;
 char* TAP_MAC;
+char* ETH0_MAC;
 
 
 void* poll_membership_list(void* peers){
@@ -79,10 +85,11 @@ int packet_ret_logic(void* packet, int socket_fd) {
     } else {
       struct proxy_addr src, dest, local;
       find_tap_dest(data_pack->datagram, &src, &dest, NULL);
-      get_local_info(socket_fd, &local);
+      get_local_info(socket_fd, &local, local_addr);
 
       //If I am the destination
-      if(compare_proxy_addr(&dest, &local) == 0) {
+      if(compare_proxy_addr(&dest, &local) == 0 || 
+          arp_broadcast_mac == dest.mac_addr) {
         /* Send to TAP */
         tap_write(tap_fd, data_pack->datagram, data_pack->head.packet_length);
       }
@@ -138,6 +145,9 @@ void* run_tap_thread(void* arg) {
     exit(1);
   }
 
+
+  get_tap_info(TAP_NAME, local_addr);
+
   /* Keep reading from that socket for more datagrams */
   while(is_alive)
   {
@@ -178,7 +188,7 @@ void* run_accept_thread(void* connection_fd) {
   void* pack;
   struct proxy_addr local, remote;
 
-  get_local_info(remote_fd, &local);
+  get_local_info(remote_fd, &local, local_addr);
   get_remote_info(remote_fd, &remote);
 
   /* Check if host in membership list */
@@ -200,7 +210,7 @@ void* run_accept_thread(void* connection_fd) {
 
       /* Manipulate dest to include your mac address TODO  getlocalinfo */
       struct proxy_addr dest;
-      get_local_info(remote_fd, &dest);
+      get_local_info(remote_fd, &dest, local_addr);
       link_pack->linkstate_head->remote= dest;
 
       /* Reverse local & dest and add to membership list  TODO */
@@ -306,7 +316,7 @@ void connect_to_peers(struct peerlist* plist) {
 
     struct proxy_addr local, remote;
 
-    if(get_local_info(connection_fd, &local) == -1){
+    if(get_local_info(connection_fd, &local, local_addr) == -1){
       fprintf(stderr, "Could not get local info. Error Code: %d", connection_fd);
       exit(EXIT_FAILURE);
     }
@@ -349,6 +359,13 @@ int main(int argc, char** argv) {
   }
 	conf = malloc(sizeof(struct config));
 
+  arp_broadcast_mac[0] = 255;
+  arp_broadcast_mac[1] = 255;
+  arp_broadcast_mac[2] = 255;
+  arp_broadcast_mac[3] = 255;
+  arp_broadcast_mac[4] = 255;
+  arp_broadcast_mac[5] = 255;
+
   /* Parse config file */
   struct peerlist* peers;
   parse_file(argv[1], conf, peers);
@@ -356,11 +373,23 @@ int main(int argc, char** argv) {
   /* Run TCP Server Thread */
   pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
 
+  local_addr = malloc(sizeof(struct proxy_addr));
 
   /* Run TAP Thread if device has TAP */
   if(conf->tap != NULL){
     TAP_NAME = conf->tap;
     pthread_create(&tap_thread, NULL, run_tap_thread, (void *)tap_fd);
+  } else {
+    // Get device MAC address //
+    char buffer[256];
+    sprintf(buffer,"/sys/class/net/eth0/address");
+
+    char* local_mac = local_addr->mac_addr;
+    get_tap_info("eth0", local_addr);
+
+    FILE* f = fopen(buffer,"r");
+    fread(buffer,1,256,f);
+    sscanf(buffer,"%hhX:%hhX:%hhX:%hhX:%hhX:%hhX",local_mac,local_mac+1,local_mac+2,local_mac+3,local_mac+4,local_mac+5);
   }
 
   /* Run Polling Thread */

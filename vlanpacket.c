@@ -423,7 +423,7 @@ ssize_t socket_write(int socket_fd, char* buffer, size_t length) {
  * param proxy_addr: address of where to put proxy_addr
  * return: -1 on failure, 0 on success
  */
-int get_local_info(int socket_fd, struct proxy_addr* info) {
+int get_local_info(int socket_fd, struct proxy_addr* info, struct proxy_addr* local_addr) {
   struct sockaddr_in sock_info;
   size_t sock_info_size = sizeof(sock_info);
 
@@ -433,7 +433,15 @@ int get_local_info(int socket_fd, struct proxy_addr* info) {
     return -1;
   }
 
-  info->ip = ntohl(sock_info.sin_addr.s_addr);
+  /*
+  if(local_addr != NULL) {
+    info->ip = local_addr->ip;
+  } else {
+    info->ip = ntohl(sock_info.sin_addr.s_addr);
+  }
+  */
+
+  memcpy(info->mac_addr, local_addr->mac_addr, 6*sizeof(uint8_t));
   info->port = ntohs(sock_info.sin_port);
 
   return 0;
