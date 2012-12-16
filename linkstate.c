@@ -16,7 +16,7 @@ struct peerlist* parse_file(char* input_file,struct config* conf, struct peerlis
   char* line = &line_buffer[0];
   char* tok;
   conf->tap = NULL;
-  struct peerlist* ptr = peers;
+  struct peerlist* ptr = NULL;
 
   config_file = fopen(input_file, "r");
 
