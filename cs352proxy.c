@@ -52,7 +52,7 @@ void* poll_membership_list(void* peers){
     /* Every LinkTimeout seconds */
     if(timeout_passed >= conf->linktimeout) {
       /* Delete expired members */
-      delete_expired_members(member_list, conf->linktimeout);
+      //delete_expired_members(member_list, conf->linktimeout);
       timeout_passed = 0;
     }
     if(timeperiod_passed == conf->linkperiod){
@@ -260,19 +260,19 @@ void* start_tcp_listener(void* socket_arg) {
   int socket_fd = (int)socket_arg;
   int listen_port = conf->listenport;
 
-  int connection_fd;
 
   struct sockaddr_in socket_info;
 
   /* Create the socket info */
-  if(get_socket_info(NULL, listen_port, &socket_info)) {
+  if(get_socket_info(NULL, listen_port, &socket_info) == -1) {
     fprintf(stderr, "Failure getting socket info");
     exit(EXIT_FAILURE);
   }
 
+
   /* Bind */
   if(bind(socket_fd, (struct sockaddr*)&socket_info, sizeof(socket_info))) {
-    fprintf(stderr, "Binding failed.");
+    fprintf(stderr, "Binding failed. Error: %s\n", strerror(errno));
     close(socket_fd);
     exit(EXIT_FAILURE);
   }
@@ -288,6 +288,7 @@ void* start_tcp_listener(void* socket_arg) {
   /* Accept connections, and spawn new threads for each connection */
   while(is_alive) {
     pthread_t child;
+		int connection_fd;
 
     /* Accept */
     if((connection_fd = accept(socket_fd, NULL, NULL)) <= 0) {
@@ -307,6 +308,9 @@ void connect_to_peers(struct peerlist* plist) {
 
   while(ptr != NULL) {
     int connection_fd = connect_to(ptr->hostname, ptr->port);
+		if(connection_fd == -1) {
+			exit(EXIT_FAILURE);
+		}
 
     /* Send 1 record linkstate packet,
      * with RTT of 1 and ID of current time */
@@ -363,15 +367,17 @@ int main(int argc, char** argv) {
   arp_broadcast_mac[0] = 255;
   arp_broadcast_mac[1] = 255;
   arp_broadcast_mac[2] = 255;
+	printf("socket: %d\n", socket_fd);
   arp_broadcast_mac[3] = 255;
   arp_broadcast_mac[4] = 255;
   arp_broadcast_mac[5] = 255;
 
   /* Parse config file */
   struct peerlist* peers;
-  parse_file(argv[1], conf, peers);
+  peers = parse_file(argv[1], conf, peers);
 
   /* Run TCP Server Thread */
+	tcp_fd = create_socket();
   pthread_create(&tcp_thread, NULL, start_tcp_listener, (void *)tcp_fd);
 
   local_addr = malloc(sizeof(struct proxy_addr));
@@ -397,6 +403,7 @@ int main(int argc, char** argv) {
   pthread_create(&poll_thread, NULL, poll_membership_list, (void *)peers); 
 
   /* Connect to peers */
+	sleep(2);
   connect_to_peers(peers);
 
   /* Wait for TCP and TAP and Polling thread */

@@ -89,7 +89,7 @@ int connect_to(char* host, int port) {
   }
 
   /* Create the socket info */
-  if(!get_socket_info(host, port, &socket_info)) {
+  if(get_socket_info(host, port, &socket_info) == -1) {
     fprintf(stderr, "Failure getting socket info\n");
     return -1;
   }
