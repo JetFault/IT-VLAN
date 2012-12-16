@@ -104,8 +104,6 @@ int close_peer_route(struct membership_list* member_list, struct routes* route_l
  */
 int broadcast(struct routes* route_list, void* packet);
 
-int send_linkstate(int socket_fd, struct linkstate* l_state, struct proxy_addr* local);
-
 int add_seen(struct last_seen_list* seen_list, struct data_packet* data_pack);
 
 int destroy_vlan(struct membership_list* member_list, struct routes* routes_list, 
@@ -115,4 +113,25 @@ int send_probes(struct routes* route_list, struct probereq_list* probe_list);
 
 uint32_t receive_probe(struct membership_list* member_list ,struct probereq_list* probe_list, struct proberes_packet* proberes_pack, unsigned int end_time, struct linkstate* link);
 */
+
+/* Send a linkstate packet to a socket
+ * param socket_fd: socket to send to
+ * param membership list: list of linkstates to create
+ *      a linkstate packet from and send
+ * return: Number of neighbors sent
+ */
+int send_linkstate(int socket_fd, struct linkstate* link_list, struct proxy_addr* local);
+
+
+int flood_linkstate(struct routes* route_list, struct membership_list* member_list, struct proxy_addr* source);
+
+
+int create_linkstate_packet(struct membership_list* member_list, 
+    struct proxy_addr* source, struct linkstate_packet* lstate_pack);
+
+
+
+
+
+
 #endif

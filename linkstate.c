@@ -445,19 +445,19 @@ int create_linkstate_packet(struct membership_list* member_list,
   lstate_pack->head.packet_length = sizeof(uint16_t) +
     sizeof(struct proxy_addr) + (sizeof(struct linkstate)*list_size);
   lstate_pack->num_neighbors = list_size;
+	lstate_pack->source = *source;
   lstate_pack->linkstate_head = member_list->list;
 
   return list_size;
 }
 
-int flood_linkstate(struct routes* route_list, struct membership_list* member_list) {
+int flood_linkstate(struct routes* route_list, struct membership_list* member_list, struct proxy_addr* source) {
   //lock here
   pthread_mutex_lock(&(member_list->lock));
-  struct proxy_addr source;
 
   struct linkstate_packet* lstate_pack;
 
-  create_linkstate_packet(member_list, &source, lstate_pack);
+  create_linkstate_packet(member_list, source, lstate_pack);
   broadcast(route_list, lstate_pack);
   pthread_mutex_unlock(&(member_list->lock));
 

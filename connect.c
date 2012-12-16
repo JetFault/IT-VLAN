@@ -103,27 +103,3 @@ int connect_to(char* host, int port) {
   return socket_fd;
 }
 
-
-#if 0
-//comment out for now
-
-  /* CODE TO OPEN THE SOCKET */
-  /* give the connect call the sockaddr_in struct that has the address
-   * in it on the connect call */ 
-  if (connect(connection_fd, (struct sockaddr*)&to, sizeof(to)) < 0) { 
-    perror("connect"); 
-    close(socket_fd);
-    exit(-1); 
-  }
-
-  connection_fd = connect(socket_fd, (struct sockaddr *)&stSockAddr, sizeof(stSockAddr));
-  if(connection_fd == -1) {
-    perror("connect failed");
-    close(socket_fd);
-    exit(EXIT_FAILURE);
-  }
-
-  return connection_fd;
-}
-
-#endif

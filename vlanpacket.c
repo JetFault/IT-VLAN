@@ -111,6 +111,12 @@ uint16_t read_packet(int socket_fd, void** packet_struct) {
 ssize_t send_to(void* packet, int socket_fd) {
   char* buffer;
   size_t size = serialize(packet, &buffer);
+	if(size == 0) { 
+#if DEBUG 
+		printf("Wrong packet type");
+#endif
+		return -1;
+	}
   ssize_t size_written = socket_write(socket_fd, buffer, size);
   free(buffer);
   return size_written;
@@ -246,7 +252,6 @@ uint16_t deserialize(struct header* head, char *buffer, void** packet_struct) {
 }
 
 /* Serlialize a packet struct into a char* buffer to send over network
- * param packet_type: the packet_type, defined as PACKET_TYPE_*
  * param packet: the struct for the packet_type typecasted as void*
  * param buffer: location to malloc new char* buffer
  * return: size of buffer
@@ -349,7 +354,7 @@ size_t serialize(void* packet, char** buffer) {
   }
   else {
     fprintf(stderr, "Wrong packet type: %u\n", packet_type);
-    free(buffer);
+    free(*buffer);
     return 0;
   }
 

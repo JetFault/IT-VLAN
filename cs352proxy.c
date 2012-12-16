@@ -320,7 +320,6 @@ void connect_to_peers(struct peerlist* plist) {
     self_lstate.ID = current_time();
     self_lstate.avg_RTT = 1;
     self_lstate.next = NULL;
-
     struct proxy_addr local, remote;
 
     if(get_local_info(connection_fd, &local, local_addr) == -1){
@@ -334,9 +333,19 @@ void connect_to_peers(struct peerlist* plist) {
     self_lstate.local = local;
     self_lstate.remote = remote;
 
+		//Create packet
+		struct proxy_addr source;
+		get_local_info(connection_fd, &source, local_addr);
+
+		struct linkstate_packet lstate_pack;
+		struct membership_list member_list_solo;
+		member_list_solo.list = &self_lstate;
+		member_list_solo.size = 1;
+
+		create_linkstate_packet(&member_list_solo, &source, &lstate_pack);
 
     /* Send 1 record linkstate packet of end peer */
-    send_to((void*)&self_lstate,connection_fd);
+    send_to((void*)&lstate_pack,connection_fd);
 
     tmp = ptr;
     ptr = ptr->next;
