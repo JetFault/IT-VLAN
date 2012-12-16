@@ -369,6 +369,8 @@ void connect_to_peers(struct peerlist* plist) {
  */
 int main(int argc, char** argv) {
   pthread_t tcp_thread, tap_thread, poll_thread;
+  struct membership_list* member_list = malloc(sizeof(struct membership_list));
+  pthread_mutex_init(&(member_list->lock), NULL);
 
   if(argc != 2) {
     exit(EXIT_FAILURE);
@@ -422,6 +424,6 @@ int main(int argc, char** argv) {
     pthread_join(tap_thread, NULL);
   }
   pthread_join(poll_thread,NULL);
-
+  pthread_mutex_destroy(&(member_list->lock));
   return 0;
 }
